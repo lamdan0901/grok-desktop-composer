@@ -29,6 +29,8 @@ import { useSlashCommandsStore } from "@/stores/slashCommandsStore";
 import { useSessionConfigStore } from "@/stores/sessionConfigStore";
 import { useQuestionStore } from "@/stores/questionStore";
 import { usePlanReviewStore } from "@/stores/planReviewStore";
+import { useTaskStore } from "@/stores/taskStore";
+import { useMcpStore } from "@/stores/mcpStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
 import { isBenignAttachError } from "@/lib/acpErrors";
 import {
@@ -484,6 +486,8 @@ export class TabAcpSession {
     clearSlashCommandsInflight(this.tabId);
     useSlashCommandsStore.getState().clearSession(this.tabId);
     clearFeatureCache(this.tabId);
+    useTaskStore.getState().clearTab(this.tabId);
+    useMcpStore.getState().clearTab(this.tabId);
     cancelHistoryReplay(this.tabId);
   }
 
