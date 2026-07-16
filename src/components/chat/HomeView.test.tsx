@@ -5,8 +5,16 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { HomeView } from "./HomeView";
 
 const mocks = vi.hoisted(() => ({
+  attachments: [] as Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    data: string;
+    previewUrl: string;
+  }>,
   buildPromptContentBlocks: vi.fn(),
   sendPrompt: vi.fn(),
+  clear: vi.fn(),
 }));
 
 vi.mock("@/lib/acp", () => ({
@@ -27,12 +35,12 @@ vi.mock("@/hooks/useComposerModelCycle", () => ({
 }));
 vi.mock("@/hooks/useComposerAttachments", () => ({
   useComposerAttachments: () => ({
-    attachments: [],
+    attachments: mocks.attachments,
     atLimit: false,
     fileInputRef: { current: null },
     handlePaste: vi.fn(),
     remove: vi.fn(),
-    clear: vi.fn(),
+    clear: mocks.clear,
     openFilePicker: vi.fn(),
     handleFileInputChange: vi.fn(),
   }),
@@ -76,6 +84,8 @@ describe("HomeView", () => {
   beforeEach(() => {
     mocks.buildPromptContentBlocks.mockReset();
     mocks.sendPrompt.mockReset();
+    mocks.clear.mockReset();
+    mocks.attachments.length = 0;
     useWorkspaceStore.setState({
       projects: [{ id: "p1", cwd: "C:\\repo", name: "repo" }],
       sessions: [{
@@ -149,11 +159,43 @@ describe("HomeView", () => {
     expect(input.value).toBe("Read assets/example.png");
     expect(mocks.sendPrompt).not.toHaveBeenCalled();
     expect(addUserMessage).not.toHaveBeenCalled();
+    expect(mocks.clear).not.toHaveBeenCalled();
 
     resolveBlocks([
       { type: "text", text: "Read assets/example.png" },
     ]);
     await waitFor(() => expect(mocks.sendPrompt).toHaveBeenCalled());
     expect(addUserMessage).toHaveBeenCalledWith("s1", "Read assets/example.png", []);
+  });
+
+  it("keeps home composer state and does not send when a repository image fails to load", async () => {
+    const attachment = {
+      id: "image-1",
+      name: "attached.png",
+      mimeType: "image/png",
+      data: "AAEC",
+      previewUrl: "data:image/png;base64,AAEC",
+    };
+    mocks.attachments.push(attachment);
+    mocks.buildPromptContentBlocks.mockRejectedValueOnce(
+      new Error('Failed to read image "missing.png"'),
+    );
+    const addUserMessage = vi.fn(useWorkspaceStore.getState().addUserMessage);
+    useWorkspaceStore.setState({ addUserMessage });
+
+    render(<HomeView />);
+    const input = screen.getByPlaceholderText("Do anything") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Read missing.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(mocks.buildPromptContentBlocks).toHaveBeenCalledWith(
+      "Read missing.png",
+      [attachment],
+      "C:\\repo",
+    ));
+    expect(input.value).toBe("Read missing.png");
+    expect(mocks.clear).not.toHaveBeenCalled();
+    expect(addUserMessage).not.toHaveBeenCalled();
+    expect(mocks.sendPrompt).not.toHaveBeenCalled();
   });
 });
