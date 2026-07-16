@@ -31,6 +31,9 @@ import { useQuestionStore } from "@/stores/questionStore";
 import { usePlanReviewStore } from "@/stores/planReviewStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useMcpStore } from "@/stores/mcpStore";
+import { useHookStore } from "@/stores/hookStore";
+import { useSkillStore } from "@/stores/skillStore";
+import { useFolderTrustStore } from "@/stores/folderTrustStore";
 import { useRewindStore } from "@/stores/rewindStore";
 import { useQueueStore } from "@/stores/queueStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
@@ -157,6 +160,7 @@ export class TabAcpSession {
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: { readTextFile: true, writeTextFile: true },
+          _meta: { "x.ai/folderTrust.interactive": true },
         },
       });
       this.loadSessionSupported =
@@ -282,6 +286,7 @@ export class TabAcpSession {
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: { readTextFile: true, writeTextFile: true },
+          _meta: { "x.ai/folderTrust.interactive": true },
         },
       });
       this.loadSessionSupported =
@@ -337,6 +342,7 @@ export class TabAcpSession {
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: { readTextFile: true, writeTextFile: true },
+          _meta: { "x.ai/folderTrust.interactive": true },
         },
       });
       this.loadSessionSupported =
@@ -492,6 +498,9 @@ export class TabAcpSession {
     clearFeatureCache(this.tabId);
     useTaskStore.getState().clearTab(this.tabId);
     useMcpStore.getState().clearTab(this.tabId);
+    useSkillStore.getState().clearTab(this.tabId);
+    useHookStore.getState().clearTab(this.tabId);
+    useFolderTrustStore.getState().cancelSession(this.tabId);
     useRewindStore.getState().clearSession(this.tabId);
     useQueueStore.getState().clearSession(this.tabId);
     cancelHistoryReplay(this.tabId);

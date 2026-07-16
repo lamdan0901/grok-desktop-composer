@@ -4,6 +4,7 @@ import { useQuestionStore, type AskQuestionRequest } from "@/stores/questionStor
 import { usePlanReviewStore, type ExitPlanModeRequest } from "@/stores/planReviewStore";
 import { usePlanStore } from "@/stores/planStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useFolderTrustStore } from "@/stores/folderTrustStore";
 
 /** JSON-RPC method-not-found error (code -32601). Throw for unhandled reverse requests. */
 export function methodNotFound(method: string): never {
@@ -35,6 +36,12 @@ export async function handleReverseExtMethod(
       useWorkspaceStore.getState().setSessionStatus(sessionId, "plan_review");
       return usePlanReviewStore.getState().requestReview(sessionId, request);
     }
+
+    case XAI.folderTrustRequest.method:
+      return useFolderTrustStore.getState().request(
+        sessionId,
+        params as { folder?: string; reason?: string },
+      );
 
     // x.ai/mcp/sdk_call: no SDK MCP server is registered client-side. It is a
     // blocking reverse request, so it MUST return method_not_found — never a

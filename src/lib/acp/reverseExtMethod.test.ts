@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { handleReverseExtMethod, methodNotFound } from "./reverseExtMethod";
 import { useQuestionStore } from "@/stores/questionStore";
 import { usePlanReviewStore } from "@/stores/planReviewStore";
+import { useFolderTrustStore } from "@/stores/folderTrustStore";
 
 describe("handleReverseExtMethod", () => {
   it("returns method_not_found for an unknown method", async () => {
@@ -66,5 +67,15 @@ describe("handleReverseExtMethod", () => {
     );
     usePlanReviewStore.getState().cancelSession("dispose-p");
     await expect(promise).resolves.toEqual({ outcome: "abandoned" });
+  });
+
+  it("blocks on folder trust and resolves with an explicit outcome", async () => {
+    const promise = handleReverseExtMethod("trust-1", "x.ai/folder_trust/request", {
+      folder: "C:\\repo",
+      reason: "project hooks",
+    });
+    await vi.waitFor(() => expect(useFolderTrustStore.getState().pendingBySession["trust-1"]).toBeTruthy());
+    expect(useFolderTrustStore.getState().respond("trust-1", true)).toEqual({ outcome: "approved" });
+    await expect(promise).resolves.toEqual({ outcome: "approved" });
   });
 });
