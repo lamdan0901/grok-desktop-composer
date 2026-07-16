@@ -125,4 +125,35 @@ describe("HomeView", () => {
       "C:\\repo",
     );
   });
+
+  it("retains home composer state until repository images finish loading", async () => {
+    let resolveBlocks: (blocks: unknown[]) => void = () => undefined;
+    mocks.buildPromptContentBlocks.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveBlocks = resolve;
+      }),
+    );
+    const addUserMessage = vi.fn(useWorkspaceStore.getState().addUserMessage);
+    useWorkspaceStore.setState({ addUserMessage });
+
+    render(<HomeView />);
+    const input = screen.getByPlaceholderText("Do anything") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Read assets/example.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(mocks.buildPromptContentBlocks).toHaveBeenCalledWith(
+      "Read assets/example.png",
+      [],
+      "C:\\repo",
+    ));
+    expect(input.value).toBe("Read assets/example.png");
+    expect(mocks.sendPrompt).not.toHaveBeenCalled();
+    expect(addUserMessage).not.toHaveBeenCalled();
+
+    resolveBlocks([
+      { type: "text", text: "Read assets/example.png" },
+    ]);
+    await waitFor(() => expect(mocks.sendPrompt).toHaveBeenCalled());
+    expect(addUserMessage).toHaveBeenCalledWith("s1", "Read assets/example.png", []);
+  });
 });

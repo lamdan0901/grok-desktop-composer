@@ -5,8 +5,16 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Composer } from "./Composer";
 
 const mocks = vi.hoisted(() => ({
+  attachments: [] as Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    data: string;
+    previewUrl: string;
+  }>,
   buildPromptContentBlocks: vi.fn(),
   sendPrompt: vi.fn(),
+  clear: vi.fn(),
 }));
 
 vi.mock("@/lib/acp", () => ({
@@ -33,12 +41,12 @@ vi.mock("@/hooks/useComposerModelCycle", () => ({
 }));
 vi.mock("@/hooks/useComposerAttachments", () => ({
   useComposerAttachments: () => ({
-    attachments: [],
+    attachments: mocks.attachments,
     atLimit: false,
     fileInputRef: { current: null },
     handlePaste: vi.fn(),
     remove: vi.fn(),
-    clear: vi.fn(),
+    clear: mocks.clear,
     openFilePicker: vi.fn(),
     handleFileInputChange: vi.fn(),
   }),
@@ -100,6 +108,8 @@ describe("Composer", () => {
   beforeEach(() => {
     mocks.buildPromptContentBlocks.mockReset();
     mocks.sendPrompt.mockReset();
+    mocks.clear.mockReset();
+    mocks.attachments.length = 0;
     useWorkspaceStore.setState({
       projects: [{ id: "p1", cwd: "C:\\repo", name: "repo" }],
       sessions: [{
@@ -143,6 +153,14 @@ describe("Composer", () => {
   });
 
   it("keeps composer state and does not send when a repository image fails to load", async () => {
+    const attachment = {
+      id: "image-1",
+      name: "attached.png",
+      mimeType: "image/png",
+      data: "AAEC",
+      previewUrl: "data:image/png;base64,AAEC",
+    };
+    mocks.attachments.push(attachment);
     mocks.buildPromptContentBlocks.mockRejectedValueOnce(
       new Error('Failed to read image "missing.png"'),
     );
@@ -154,10 +172,11 @@ describe("Composer", () => {
 
     await waitFor(() => expect(mocks.buildPromptContentBlocks).toHaveBeenCalledWith(
       "Read missing.png",
-      [],
+      [attachment],
       "C:\\repo",
     ));
     expect(input.value).toBe("Read missing.png");
+    expect(mocks.clear).not.toHaveBeenCalled();
     expect(mocks.sendPrompt).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().sessions[0]!.messages).toEqual([
       expect.objectContaining({ role: "error", content: 'Failed to read image "missing.png"' }),
