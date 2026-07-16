@@ -17,6 +17,7 @@ export function RewindPanel() {
   const error = useRewindStore((state) =>
     tabId ? state.errorBySession[tabId] ?? null : null,
   );
+  const setError = useRewindStore((state) => state.setError);
   const [expanded, setExpanded] = useState(false);
   const [supported, setSupported] = useState<boolean | null>(null);
 
@@ -41,7 +42,16 @@ export function RewindPanel() {
     ) {
       return;
     }
-    setSupported(await executeRewind(tabId, pointId));
+    try {
+      setSupported(await executeRewind(tabId, pointId));
+    } catch (restoreError) {
+      setError(
+        tabId,
+        restoreError instanceof Error
+          ? restoreError.message
+          : "Failed to restore rewind point",
+      );
+    }
   };
 
   return (

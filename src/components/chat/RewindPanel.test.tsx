@@ -58,4 +58,22 @@ describe("RewindPanel", () => {
       extMethod.mock.calls.filter(([method]) => method === "x.ai/rewind/execute"),
     ).toHaveLength(1);
   });
+
+  it("shows operational restore errors", async () => {
+    const extMethod = vi
+      .fn()
+      .mockResolvedValueOnce({ points: [{ id: "p1", label: "Before edit" }] })
+      .mockRejectedValueOnce(new Error("Restore failed"));
+    vi.spyOn(acp, "getTabSession").mockReturnValue({
+      grokSessionId: "grok-1",
+      extMethod,
+    } as unknown as acp.TabAcpSession);
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    render(<RewindPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Rewind files" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Before edit" }));
+
+    expect(await screen.findByText("Restore failed")).toBeTruthy();
+  });
 });

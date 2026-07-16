@@ -86,4 +86,19 @@ describe("PlanOverlay line comments", () => {
       }),
     );
   });
+
+  it("keeps markdown rendering while exposing stable line controls", () => {
+    usePlanStore.setState({
+      bySession: {
+        s1: { path: null, content: "# Heading\nBody", loading: false, error: null },
+      },
+    });
+
+    render(<PlanOverlay />);
+
+    expect(screen.getByRole("heading", { name: "Heading" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Add comment to line 2" }),
+    ).toBeTruthy();
+  });
 });

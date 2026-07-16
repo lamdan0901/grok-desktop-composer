@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { X, ClipboardList } from "lucide-react";
+import { MarkdownContent } from "./MarkdownContent";
 import { approvePlan, revisePlan } from "@/lib/plan";
 import {
   formatPlanComments,
@@ -188,7 +189,9 @@ export function PlanOverlay() {
                 return (
                   <li key={lineNumber} className="plan-overlay__line">
                     <span className="plan-overlay__line-number">{lineNumber}</span>
-                    <span className="plan-overlay__line-text">{line || " "}</span>
+                    <div className="plan-overlay__line-text message__markdown">
+                      <MarkdownContent>{line || " "}</MarkdownContent>
+                    </div>
                     <button
                       type="button"
                       className="plan-overlay__line-comment-btn"

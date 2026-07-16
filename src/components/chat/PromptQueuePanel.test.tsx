@@ -47,4 +47,13 @@ describe("PromptQueuePanel", () => {
     );
     expect(screen.getByText("First")).toBeTruthy();
   });
+
+  it("shows operational queue errors", async () => {
+    removeQueuedPrompt.mockRejectedValueOnce(new Error("Queue update failed"));
+    render(<PromptQueuePanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove First" }));
+
+    expect(await screen.findByText("Queue update failed")).toBeTruthy();
+  });
 });

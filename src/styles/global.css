@@ -2481,7 +2481,8 @@ button {
   margin: 0;
   padding: 0;
   list-style: none;
-  font: 13px/1.5 var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .plan-overlay__line {
@@ -2501,6 +2502,14 @@ button {
 .plan-overlay__line-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.plan-overlay__line-text > :first-child {
+  margin-top: 0;
+}
+
+.plan-overlay__line-text > :last-child {
+  margin-bottom: 0;
 }
 
 .plan-overlay__line-comment-btn {
