@@ -14,6 +14,7 @@ import { GROK_EXTENSION_NOTIFY_METHODS } from "@/lib/sessionUpdateDedupe";
 import { applySessionNotification } from "./sessionUpdates";
 import { handleReverseExtMethod } from "./reverseExtMethod";
 import { routeExtNotification } from "./extNotificationRouter";
+import { routeMcpNotification } from "./mcpNotifications";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -28,6 +29,11 @@ export function createClientHandler(sessionId: SessionId): Client {
 
     async extNotification(method, params) {
       if (routeExtNotification(sessionId, method, params)) return;
+      if (
+        routeMcpNotification(sessionId, method, params as Record<string, unknown>)
+      ) {
+        return;
+      }
       if (!GROK_EXTENSION_NOTIFY_METHODS.has(method)) return;
       applySessionNotification(sessionId, params, method);
     },
