@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Composer } from "./Composer";
 
+const mocks = vi.hoisted(() => ({
+  buildPromptContentBlocks: vi.fn(),
+  sendPrompt: vi.fn(),
+}));
+
 vi.mock("@/lib/acp", () => ({
+  getTabSession: () => ({ sendPrompt: mocks.sendPrompt, cancelPrompt: vi.fn() }),
+}));
+vi.mock("@/lib/repositoryImages", () => ({
+  buildPromptContentBlocks: mocks.buildPromptContentBlocks,
 }));
 vi.mock("@/lib/ensureAcpForSend", () => ({
   ensureAcpForSend: vi.fn().mockResolvedValue(undefined),
@@ -51,6 +60,15 @@ vi.mock("@/hooks/usePromptHistory", () => ({
     commitPrompt: vi.fn(),
   }),
 }));
+vi.mock("@/hooks/useFileMentions", () => ({
+  useFileMentions: () => ({
+    handleKeyDown: () => false,
+    menuOpen: false,
+    filtered: [],
+    activeIndex: 0,
+    applyEntry: vi.fn(),
+  }),
+}));
 vi.mock("./AccessModePill", () => ({ AccessModePill: () => null }));
 vi.mock("./ModelSelector", () => ({ ModelSelector: () => null }));
 vi.mock("./UsageBar", () => ({ UsageBar: () => null }));
@@ -60,13 +78,28 @@ vi.mock("./ComposerAttachmentStrip", () => ({
   ComposerFileInput: () => null,
 }));
 vi.mock("./ComposerTextarea", () => ({
-  ComposerTextarea: ({ disabled }: { disabled?: boolean }) => (
-    <textarea aria-label="Prompt" disabled={disabled} />
+  ComposerTextarea: ({
+    disabled,
+    value,
+    onChange,
+  }: {
+    disabled?: boolean;
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <textarea
+      aria-label="Prompt"
+      disabled={disabled}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
   ),
 }));
 
 describe("Composer", () => {
   beforeEach(() => {
+    mocks.buildPromptContentBlocks.mockReset();
+    mocks.sendPrompt.mockReset();
     useWorkspaceStore.setState({
       projects: [{ id: "p1", cwd: "C:\\repo", name: "repo" }],
       sessions: [{
@@ -107,5 +140,27 @@ describe("Composer", () => {
     expect(screen.queryByRole("textbox", { name: "Active turn interjection" })).toBeNull();
     expect(screen.getByRole("button", { name: "Interject active turn" })).toBeTruthy();
     expect((screen.getByRole("textbox", { name: "Prompt" }) as HTMLTextAreaElement).disabled).toBe(false);
+  });
+
+  it("keeps composer state and does not send when a repository image fails to load", async () => {
+    mocks.buildPromptContentBlocks.mockRejectedValueOnce(
+      new Error('Failed to read image "missing.png"'),
+    );
+    render(<Composer />);
+    const input = screen.getByRole("textbox", { name: "Prompt" }) as HTMLTextAreaElement;
+
+    fireEvent.change(input, { target: { value: "Read missing.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(mocks.buildPromptContentBlocks).toHaveBeenCalledWith(
+      "Read missing.png",
+      [],
+      "C:\\repo",
+    ));
+    expect(input.value).toBe("Read missing.png");
+    expect(mocks.sendPrompt).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().sessions[0]!.messages).toEqual([
+      expect.objectContaining({ role: "error", content: 'Failed to read image "missing.png"' }),
+    ]);
   });
 });

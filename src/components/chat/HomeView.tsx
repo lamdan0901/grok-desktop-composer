@@ -36,9 +36,9 @@ import {
 } from "@/lib/executeSlashCommand";
 import {
   canSendComposer,
-  toPromptContentBlocks,
   toUserMessageAttachments,
 } from "@/lib/composerAttachments";
+import { buildPromptContentBlocks } from "@/lib/repositoryImages";
 import {
   ProjectPickerDropdown,
   useRecordProjectOnAdd,
@@ -209,10 +209,7 @@ export function HomeView() {
       slashResult.handled && slashResult.forwardText
         ? slashResult.forwardText
         : trimmed;
-    const promptBlocks = toPromptContentBlocks(promptText, attachments);
     const messageAttachments = toUserMessageAttachments(attachments);
-
-    commitPrompt(promptText);
 
     let projectId = effectiveProjectId;
     if (!projectId) {
@@ -258,6 +255,21 @@ export function HomeView() {
     if (!cwd) return;
 
     setSending(true);
+    const promptBlocks = await buildPromptContentBlocks(
+      promptText,
+      attachments,
+      cwd,
+    ).catch((error) => {
+      appendError(
+        session.id,
+        error instanceof Error ? error.message : "Failed to load referenced image",
+      );
+      setSending(false);
+      return null;
+    });
+    if (!promptBlocks) return;
+    commitPrompt(promptText);
+
     setText("");
     setCursor(0);
     clear();
@@ -291,6 +303,7 @@ export function HomeView() {
     finalizeAssistantStream,
     appendError,
     commitPrompt,
+    buildPromptContentBlocks,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -388,7 +401,7 @@ export function HomeView() {
               className="home-composer__send"
               aria-label="Send message"
               disabled={sending || !canSend}
-              onClick={() => void handleSend()}
+              onClick={handleSend}
             >
               <ArrowUp size={16} />
             </button>

@@ -4,7 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { HomeView } from "./HomeView";
 
-vi.mock("@/lib/acp", () => ({}));
+const mocks = vi.hoisted(() => ({
+  buildPromptContentBlocks: vi.fn(),
+  sendPrompt: vi.fn(),
+}));
+
+vi.mock("@/lib/acp", () => ({
+  getTabSession: () => ({ sendPrompt: mocks.sendPrompt }),
+}));
+vi.mock("@/lib/ensureAcpForSend", () => ({
+  ensureAcpForSend: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/repositoryImages", () => ({
+  buildPromptContentBlocks: mocks.buildPromptContentBlocks,
+}));
 vi.mock("@/hooks/useCancelThreadOnEscape", () => ({ useCancelThreadOnEscape: () => undefined }));
 vi.mock("@/hooks/useComposerAccessModeCycle", () => ({
   useComposerAccessModeCycle: () => ({ handleAccessModeKeyDown: vi.fn() }),
@@ -61,6 +74,8 @@ vi.mock("./FileMentionPicker", () => ({
 
 describe("HomeView", () => {
   beforeEach(() => {
+    mocks.buildPromptContentBlocks.mockReset();
+    mocks.sendPrompt.mockReset();
     useWorkspaceStore.setState({
       projects: [{ id: "p1", cwd: "C:\\repo", name: "repo" }],
       sessions: [{
@@ -85,6 +100,29 @@ describe("HomeView", () => {
     fireEvent.change(input, { target: { value: "@" } });
     await waitFor(() =>
       expect(screen.getByRole("listbox", { name: "File mentions" })).toBeTruthy(),
+    );
+  });
+
+  it("builds the home prompt with the selected project before sending", async () => {
+    const blocks = [
+      { type: "text", text: "Read assets/example.png" },
+      { type: "image", mimeType: "image/png", data: "AAEC" },
+    ];
+    mocks.buildPromptContentBlocks.mockResolvedValueOnce(blocks);
+    render(<HomeView />);
+    const input = screen.getByPlaceholderText("Do anything");
+
+    fireEvent.change(input, { target: { value: "Read assets/example.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(mocks.sendPrompt).toHaveBeenCalledWith(
+      "Read assets/example.png",
+      blocks,
+    ));
+    expect(mocks.buildPromptContentBlocks).toHaveBeenCalledWith(
+      "Read assets/example.png",
+      [],
+      "C:\\repo",
     );
   });
 });

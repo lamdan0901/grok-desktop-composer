@@ -25,9 +25,9 @@ import { getTabSession } from "@/lib/acp";
 import { useExternallyActiveSession } from "@/hooks/useExternallyActiveSession";
 import {
   canSendComposer,
-  toPromptContentBlocks,
   toUserMessageAttachments,
 } from "@/lib/composerAttachments";
+import { buildPromptContentBlocks } from "@/lib/repositoryImages";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
 import { interjectActiveTurn } from "@/lib/acp/xaiQueue";
@@ -130,12 +130,25 @@ export function Composer() {
       slashResult.handled && slashResult.forwardText
         ? slashResult.forwardText
         : trimmed;
-    const promptBlocks = toPromptContentBlocks(promptText, attachments);
     const messageAttachments = toUserMessageAttachments(attachments);
+
+    setSending(true);
+    const promptBlocks = await buildPromptContentBlocks(
+      promptText,
+      attachments,
+      cwd,
+    ).catch((error) => {
+      appendError(
+        session.id,
+        error instanceof Error ? error.message : "Failed to load referenced image",
+      );
+      setSending(false);
+      return null;
+    });
+    if (!promptBlocks) return;
 
     commitPrompt(promptText);
 
-    setSending(true);
     setText("");
     setCursor(0);
     clear();
@@ -168,6 +181,7 @@ export function Composer() {
     setAcpState,
     clear,
     commitPrompt,
+    buildPromptContentBlocks,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
