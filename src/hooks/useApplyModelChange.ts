@@ -83,17 +83,10 @@ export function useApplyModelChange() {
       setChanging(true);
       try {
         if (selector.source === "acp") {
-          try {
-            await withTimeout(
-              getTabSession(session.id).setSessionConfigValue(
-                selector.configId,
-                value,
-              ),
-              ACP_MODEL_TIMEOUT_MS,
-            );
-          } catch {
-            await restartWithModel(value);
-          }
+          await withTimeout(
+            getTabSession(session.id).setModel(value),
+            ACP_MODEL_TIMEOUT_MS,
+          );
         } else {
           await restartWithModel(value);
         }

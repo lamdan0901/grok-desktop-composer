@@ -6,6 +6,7 @@ import { ChatColumn } from "@/components/chat/ChatColumn";
 import { Composer } from "@/components/chat/Composer";
 import { PermissionPrompt } from "@/components/chat/PermissionPrompt";
 import { PlanOverlay } from "@/components/chat/PlanOverlay";
+import { AskQuestionOverlay } from "@/components/chat/AskQuestionOverlay";
 import { UsageOverlay } from "@/components/chat/UsageOverlay";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { usePlanWatcher } from "@/hooks/usePlanWatcher";
@@ -44,6 +45,7 @@ export function AppShell() {
           <PermissionPrompt />
           <Composer />
           <PlanOverlay />
+          <AskQuestionOverlay />
           <UsageOverlay />
         </div>
       </div>

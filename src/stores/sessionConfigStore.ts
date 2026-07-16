@@ -7,15 +7,24 @@ import {
   type ModelSelectorState,
 } from "@/lib/sessionConfig";
 import type { SessionId } from "@/lib/types";
+import {
+  parseReasoningEfforts,
+  type EffortOption,
+  type SessionModelState,
+} from "@/lib/sessionModel";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 interface SessionConfigState {
   bySession: Record<SessionId, SessionConfigOption[]>;
+  modelsBySession: Record<SessionId, SessionModelState>;
   cliModels: string[];
   cliDefaultModel: string;
   cliModelsLoaded: boolean;
   cliModelsError: string | null;
   setConfigOptions: (sessionId: SessionId, options: SessionConfigOption[]) => void;
+  setSessionModels: (sessionId: SessionId, models: SessionModelState) => void;
+  setCurrentModel: (sessionId: SessionId, modelId: string) => void;
+  getEffortOptions: (sessionId: SessionId | null) => EffortOption[];
   clearSession: (sessionId: SessionId) => void;
   loadCliModels: () => Promise<void>;
   getModelSelector: (sessionId: SessionId | null) => ModelSelectorState;
@@ -23,6 +32,7 @@ interface SessionConfigState {
 
 export const useSessionConfigStore = create<SessionConfigState>((set, get) => ({
   bySession: {},
+  modelsBySession: {},
   cliModels: [],
   cliDefaultModel: "",
   cliModelsLoaded: false,
@@ -34,11 +44,40 @@ export const useSessionConfigStore = create<SessionConfigState>((set, get) => ({
     }));
   },
 
+  setSessionModels: (sessionId, models) =>
+    set((s) => ({
+      modelsBySession: { ...s.modelsBySession, [sessionId]: models },
+    })),
+
+  setCurrentModel: (sessionId, modelId) =>
+    set((s) => {
+      const models = s.modelsBySession[sessionId];
+      return models
+        ? {
+            modelsBySession: {
+              ...s.modelsBySession,
+              [sessionId]: { ...models, currentModelId: modelId },
+            },
+          }
+        : s;
+    }),
+
+  getEffortOptions: (sessionId) => {
+    if (!sessionId) return [];
+    const models = get().modelsBySession[sessionId];
+    const selected = models?.availableModels.find(
+      (model) => model.modelId === models.currentModelId,
+    );
+    return parseReasoningEfforts(selected?.meta);
+  },
+
   clearSession: (sessionId) => {
     set((s) => {
       const next = { ...s.bySession };
+      const nextModels = { ...s.modelsBySession };
       delete next[sessionId];
-      return { bySession: next };
+      delete nextModels[sessionId];
+      return { bySession: next, modelsBySession: nextModels };
     });
   },
 

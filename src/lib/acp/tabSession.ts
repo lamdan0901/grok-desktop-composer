@@ -3,8 +3,8 @@ import {
   PROTOCOL_VERSION,
   type ContentBlock,
   type SessionConfigOption,
-  type SessionConfigValueId,
 } from "@agentclientprotocol/sdk";
+import type { SessionModelState } from "@/lib/sessionModel";
 import { startTab, stopTab } from "@/lib/grok";
 import {
   beginHistoryReplay,
@@ -27,6 +27,10 @@ import { resolveGrokSessionCwd } from "@/lib/sessions";
 import { clearSlashCommandsInflight } from "@/lib/loadSlashCommands";
 import { useSlashCommandsStore } from "@/stores/slashCommandsStore";
 import { useSessionConfigStore } from "@/stores/sessionConfigStore";
+import { useQuestionStore } from "@/stores/questionStore";
+import { usePlanReviewStore } from "@/stores/planReviewStore";
+import { useTaskStore } from "@/stores/taskStore";
+import { useMcpStore } from "@/stores/mcpStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
 import { isBenignAttachError } from "@/lib/acpErrors";
 import {
@@ -35,6 +39,7 @@ import {
 } from "@/lib/agentOutputGuard";
 import { clearComposerFileToolDedupe } from "./applyComposerFileTool";
 import { createClientHandler } from "./createClientHandler";
+import { clearFeatureCache } from "./featureDetection";
 import { clearTabLineHandlers } from "./lineRouter";
 import { createTauriAcpStream } from "./tauriStream";
 
@@ -166,6 +171,7 @@ export class TabAcpSession {
       this.state = "ready";
       this.agentAttached = true;
       this.applyConfigOptions(session.configOptions);
+      this.applySessionModels(session);
     } catch (err) {
       this.state = "error";
       this.boundCwd = null;
@@ -193,6 +199,7 @@ export class TabAcpSession {
           cwd,
         });
         this.applyConfigOptions(resumed.configOptions);
+        this.applySessionModels(resumed);
         return true;
       } catch (err) {
         if (!isBenignAttachError(err)) throw err;
@@ -220,6 +227,7 @@ export class TabAcpSession {
         mcpServers: [],
       });
       this.applyConfigOptions(loaded.configOptions);
+      this.applySessionModels(loaded);
       return true;
     } catch (err) {
       if (isBenignAttachError(err)) return false;
@@ -359,19 +367,38 @@ export class TabAcpSession {
     }
   }
 
-  async setSessionConfigValue(
-    configId: string,
-    value: SessionConfigValueId,
-  ): Promise<void> {
+  /** Send an agent-directed `x.ai/*` (or other) extension request, verbatim on the wire. */
+  async extMethod(method: string, params: unknown): Promise<unknown> {
     if (!this.connection || !this.sessionId) {
       throw new Error("ACP session not ready");
     }
-    const res = await this.connection.setSessionConfigOption({
+    return this.connection.extMethod(method, params as Record<string, unknown>);
+  }
+
+  /** Send an agent-directed extension notification, verbatim on the wire. */
+  async extNotification(method: string, params: unknown): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("ACP session not ready");
+    }
+    await this.connection.extNotification(method, params as Record<string, unknown>);
+  }
+
+  /**
+   * Switch model via `session/set_model`; effort rides `_meta.reasoningEffort`.
+   * SDK 0.24 has no typed `setSessionModel`, so this rides `extMethod`, which
+   * sends the method name verbatim over JSON-RPC (grok's expected wire method).
+   */
+  async setModel(modelId: string, effort?: string): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("ACP session not ready");
+    }
+    await this.connection.extMethod("session/set_model", {
       sessionId: this.sessionId,
-      configId,
-      value,
+      modelId,
+      ...(effort ? { _meta: { reasoningEffort: effort } } : {}),
     });
-    this.applyConfigOptions(res.configOptions);
+    // The effort selector follows the selected model immediately.
+    useSessionConfigStore.getState().setCurrentModel(this.tabId, modelId);
   }
 
   private applyConfigOptions(
@@ -379,6 +406,17 @@ export class TabAcpSession {
   ): void {
     if (!options?.length) return;
     useSessionConfigStore.getState().setConfigOptions(this.tabId, options);
+  }
+
+  /**
+   * Capture the `models` map grok attaches to new/load/resume responses. SDK 0.24
+   * does not type it, so we read it off the untyped response.
+   */
+  private applySessionModels(response: unknown): void {
+    const models = (response as { models?: SessionModelState } | null)?.models;
+    if (models && Array.isArray(models.availableModels)) {
+      useSessionConfigStore.getState().setSessionModels(this.tabId, models);
+    }
   }
 
   async sendPrompt(
@@ -433,6 +471,10 @@ export class TabAcpSession {
   async dispose(): Promise<void> {
     clearTabLineHandlers(this.tabId);
     clearSessionNotificationDedupe(this.tabId);
+    // Settle any pending reverse requests so they do not leak or leave a stale
+    // overlay for a reconnecting session.
+    useQuestionStore.getState().cancelSession(this.tabId);
+    usePlanReviewStore.getState().cancelSession(this.tabId);
     await this.teardownAgentProcess();
     this.state = "idle";
     this.sessionId = null;
@@ -443,6 +485,9 @@ export class TabAcpSession {
     useSessionConfigStore.getState().clearSession(this.tabId);
     clearSlashCommandsInflight(this.tabId);
     useSlashCommandsStore.getState().clearSession(this.tabId);
+    clearFeatureCache(this.tabId);
+    useTaskStore.getState().clearTab(this.tabId);
+    useMcpStore.getState().clearTab(this.tabId);
     cancelHistoryReplay(this.tabId);
   }
 

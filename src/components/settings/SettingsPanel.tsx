@@ -16,6 +16,7 @@ import {
   type ComposerAccessMode,
 } from "@/lib/composerAccessMode";
 import { formatModelName } from "@/lib/formatModelName";
+import { McpServersPanel } from "@/components/settings/McpServersPanel";
 import { restartTab } from "@/lib/grok";
 import {
   PERMISSION_MODE_OPTIONS,
@@ -343,6 +344,11 @@ export function SettingsPanel() {
                 + <SettingsKbd>Tab</SettingsKbd> to cycle.
               </p>
             </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="settings-section__title">MCP Servers</h3>
+            <McpServersPanel />
           </section>
 
           <section className="settings-section">

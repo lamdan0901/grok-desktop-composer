@@ -114,6 +114,12 @@ export interface AgentNode {
   kind?: string;
   path?: string;
   startedAt?: number;
+  /** Real subagent fields (populated from subagent_* protocol events). */
+  subagentId?: string;
+  childSessionId?: string;
+  subagentType?: string;
+  contextUsagePct?: number;
+  output?: string;
 }
 
 export interface Project {

@@ -11,6 +11,7 @@ import {
 import { ErrorBlock } from "./ErrorBlock";
 import { MessageList } from "./MessageList";
 import { TodoPanel } from "./TodoPanel";
+import { TasksPane } from "./TasksPane";
 import { selectSessionTodos, useTodoStore } from "@/stores/todoStore";
 import { displayThreadTitle } from "@/lib/threadTitle";
 import { useExternallyActiveSession } from "@/hooks/useExternallyActiveSession";
@@ -103,6 +104,9 @@ export function ChatColumn() {
           <TodoPanel todos={todos} />
         </div>
       )}
+      <div className="chat-column__tasks">
+        <TasksPane />
+      </div>
       <div className="chat-column__scroll" ref={scrollRef}>
         {hasMessages ? (
           <MessageList
