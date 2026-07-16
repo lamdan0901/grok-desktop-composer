@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { ProjectFileEntry } from "@/lib/fileMentions";
 import type {
   ReadTextFileRequest,
   WriteTextFileRequest,
@@ -86,5 +87,24 @@ export async function acpWriteTextFile(
     path: normalizeDiskPath(params.path),
     root,
     content: params.content,
+  });
+}
+
+export function listProjectFiles(root: string): Promise<ProjectFileEntry[]> {
+  return invoke<ProjectFileEntry[]>("list_project_files", { root });
+}
+
+export type ProjectImageData = {
+  mimeType: string;
+  data: string;
+};
+
+export function readProjectImage(
+  root: string,
+  path: string,
+): Promise<ProjectImageData> {
+  return invoke<ProjectImageData>("read_project_image", {
+    root,
+    path: normalizeDiskPath(path),
   });
 }

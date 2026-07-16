@@ -4,7 +4,7 @@ mod grok;
 use commands::active_sessions::{
     read_active_grok_sessions, start_active_sessions_watch,
 };
-use commands::fs::{read_text_file, write_text_file};
+use commands::fs::{list_project_files, read_project_image, read_text_file, write_text_file};
 use commands::auth::{check_auth, run_grok_login, run_grok_logout};
 use commands::cli::{check_cli_ready, grok_version};
 use commands::extensions::{list_grok_skills, read_grok_skill};
@@ -85,6 +85,8 @@ pub fn run() {
             start_active_sessions_watch,
             read_text_file,
             write_text_file,
+            list_project_files,
+            read_project_image,
             list_grok_skills,
             read_grok_skill,
         ])

@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -165,6 +167,138 @@ fn slice_lines(content: &str, line: Option<u32>, limit: Option<u32>) -> String {
         .join("\n")
 }
 
+fn resolve_read_path(path: &str, root: &str) -> Result<PathBuf, String> {
+    let file_path = PathBuf::from(strip_extended_path_prefix(path));
+    if file_path.is_absolute() {
+        return Ok(file_path);
+    }
+    if root.trim().is_empty() {
+        return Err("No project directory for this session".into());
+    }
+    let root_path = PathBuf::from(strip_extended_path_prefix(root));
+    if !root_path.is_absolute() {
+        return Err("Project root must be an absolute path".into());
+    }
+    Ok(root_path.join(file_path))
+}
+
+fn image_mime_type(path: &Path) -> Result<&'static str, String> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    match extension.as_str() {
+        "png" => Ok("image/png"),
+        "jpg" | "jpeg" => Ok("image/jpeg"),
+        "gif" => Ok("image/gif"),
+        "webp" => Ok("image/webp"),
+        "bmp" => Ok("image/bmp"),
+        "svg" => Ok("image/svg+xml"),
+        _ => Err(format!("Unsupported image type for \"{}\"", path.display())),
+    }
+}
+
+fn is_same_or_descendant(path: &Path, root: &Path) -> bool {
+    let path_key = normalize_path_key(path.to_string_lossy().as_ref());
+    let root_key = normalize_path_key(root.to_string_lossy().as_ref());
+    path_key == root_key
+        || path_key
+            .strip_prefix(&root_key)
+            .is_some_and(|suffix| suffix.starts_with('\\'))
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectImage {
+    pub mime_type: String,
+    pub data: String,
+}
+
+#[tauri::command]
+pub fn read_project_image(path: String, root: String) -> Result<ProjectImage, String> {
+    if root.trim().is_empty() {
+        return Err("No project directory for this session".into());
+    }
+    let root_path = PathBuf::from(strip_extended_path_prefix(&root));
+    if !root_path.is_absolute() {
+        return Err("Project root must be an absolute path".into());
+    }
+    let root_path = root_path
+        .canonicalize()
+        .map_err(|error| format!("Invalid project root \"{root}\": {error}"))?;
+    let requested = PathBuf::from(strip_extended_path_prefix(&path));
+    let requested = if requested.is_absolute() {
+        requested
+    } else {
+        root_path.join(requested)
+    };
+    let resolved = requested
+        .canonicalize()
+        .map_err(|error| format!("Failed to read image \"{path}\": {error}"))?;
+    if !is_same_or_descendant(&resolved, &root_path) {
+        return Err("Path is outside the project directory".into());
+    }
+    let mime_type = image_mime_type(&resolved)?.to_string();
+    let bytes = fs::read(&resolved)
+        .map_err(|error| format!("Failed to read image \"{path}\": {error}"))?;
+    Ok(ProjectImage {
+        mime_type,
+        data: STANDARD.encode(bytes),
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProjectFileEntry {
+    pub path: String,
+    pub is_dir: bool,
+}
+
+#[tauri::command]
+pub fn list_project_files(root: String) -> Result<Vec<ProjectFileEntry>, String> {
+    if root.trim().is_empty() {
+        return Err("No project directory for this session".into());
+    }
+    let root = PathBuf::from(strip_extended_path_prefix(&root));
+    if !root.is_absolute() {
+        return Err("Project root must be an absolute path".into());
+    }
+    let root = root
+        .canonicalize()
+        .map_err(|e| format!("Invalid project root \"{root:?}\": {e}"))?;
+    // ponytail: cap at 5,000 entries; add an indexed matcher if large repos need more.
+    let mut entries = Vec::new();
+    let mut pending = vec![root.clone()];
+    while let Some(directory) = pending.pop() {
+        let Ok(read_dir) = fs::read_dir(&directory) else { continue };
+        for entry in read_dir.flatten() {
+            if entries.len() >= 5_000 {
+                return Ok(entries);
+            }
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name == ".git" || name == "node_modules" || name == "target" {
+                continue;
+            }
+            let Ok(file_type) = entry.file_type() else { continue };
+            let relative = path
+                .strip_prefix(&root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            entries.push(ProjectFileEntry {
+                path: relative,
+                is_dir: file_type.is_dir(),
+            });
+            if file_type.is_dir() {
+                pending.push(path);
+            }
+        }
+    }
+    entries.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(entries)
+}
+
 #[tauri::command]
 pub fn read_text_file(
     path: String,
@@ -172,7 +306,7 @@ pub fn read_text_file(
     line: Option<u32>,
     limit: Option<u32>,
 ) -> Result<String, String> {
-    let resolved = ensure_within_root(&path, &root)?;
+    let resolved = resolve_read_path(&path, &root)?;
     let content = fs::read_to_string(&resolved)
         .map_err(|e| format!("Failed to read \"{path}\": {e}"))?;
     Ok(slice_lines(&content, line, limit))
@@ -324,5 +458,99 @@ mod tests {
         let err_rel = ensure_within_root("../secret.txt", root.to_string_lossy().as_ref()).unwrap_err();
         assert!(err_rel.contains("outside"));
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reads_existing_file_outside_root() {
+        let root = env::temp_dir().join("dc_fs_read_root_test");
+        let outside = env::temp_dir().join("dc_fs_read_outside_test.txt");
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&outside, "outside content").unwrap();
+
+        let result = read_text_file(
+            outside.to_string_lossy().into_owned(),
+            root.to_string_lossy().into_owned(),
+            None,
+            None,
+        );
+
+        assert_eq!(result.unwrap(), "outside content");
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
+    }
+
+    #[test]
+    fn keeps_writes_restricted_to_root() {
+        let root = env::temp_dir().join("dc_fs_write_restriction_root_test");
+        let outside = env::temp_dir().join("dc_fs_write_restriction_outside_test.txt");
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
+        fs::create_dir_all(&root).unwrap();
+
+        let result = write_text_file(
+            outside.to_string_lossy().into_owned(),
+            root.to_string_lossy().into_owned(),
+            "must not write".to_string(),
+        );
+
+        assert!(result.unwrap_err().contains("outside"));
+        assert!(!outside.exists());
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
+    }
+
+    #[test]
+    fn maps_supported_image_extensions_to_mime_types() {
+        assert_eq!(image_mime_type(Path::new("a.png")).unwrap(), "image/png");
+        assert_eq!(image_mime_type(Path::new("a.JPG")).unwrap(), "image/jpeg");
+        assert_eq!(image_mime_type(Path::new("a.jpeg")).unwrap(), "image/jpeg");
+        assert_eq!(image_mime_type(Path::new("a.gif")).unwrap(), "image/gif");
+        assert_eq!(image_mime_type(Path::new("a.webp")).unwrap(), "image/webp");
+        assert_eq!(image_mime_type(Path::new("a.bmp")).unwrap(), "image/bmp");
+        assert_eq!(image_mime_type(Path::new("a.svg")).unwrap(), "image/svg+xml");
+        assert!(image_mime_type(Path::new("a.txt")).unwrap_err().contains("Unsupported image type"));
+    }
+
+    #[test]
+    fn reads_project_image_as_base64() {
+        let root = env::temp_dir().join("dc_project_image_test");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("assets")).unwrap();
+        fs::write(root.join("assets/example.png"), [0_u8, 1, 2]).unwrap();
+
+        let image = read_project_image(
+            "assets/example.png".to_string(),
+            root.to_string_lossy().into_owned(),
+        )
+        .unwrap();
+
+        assert_eq!(image.mime_type, "image/png");
+        assert_eq!(image.data, "AAEC");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn rejects_missing_and_outside_project_images() {
+        let root = env::temp_dir().join("dc_project_image_root_test");
+        let outside = env::temp_dir().join("dc_project_image_outside.png");
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&outside, [1_u8, 2, 3]).unwrap();
+
+        let root_string = root.to_string_lossy().into_owned();
+        let missing = read_project_image("missing.png".to_string(), root_string.clone()).unwrap_err();
+        let escaped = read_project_image(
+            outside.to_string_lossy().into_owned(),
+            root_string,
+        )
+        .unwrap_err();
+
+        assert!(missing.contains("Failed to read image \"missing.png\""));
+        assert!(escaped.contains("outside the project directory"));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&outside);
     }
 }
