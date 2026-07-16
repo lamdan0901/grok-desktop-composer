@@ -10,6 +10,7 @@ import { acpReadTextFile, acpWriteTextFile } from "@/lib/acpFs";
 import type { SessionId } from "@/lib/types";
 import { isPlanPermissionRequest } from "@/lib/plan";
 import { pickAutoApproveOption } from "@/lib/permission";
+import { isRepositoryImagePath } from "@/lib/repositoryImages";
 import { GROK_EXTENSION_NOTIFY_METHODS } from "@/lib/sessionUpdateDedupe";
 import { applySessionNotification } from "./sessionUpdates";
 import { handleReverseExtMethod } from "./reverseExtMethod";
@@ -82,6 +83,11 @@ export function createClientHandler(sessionId: SessionId): Client {
     },
 
     async readTextFile(params: ReadTextFileRequest) {
+      if (isRepositoryImagePath(params.path)) {
+        return {
+          content: "Image already attached in the prompt; do not read it as text.",
+        };
+      }
       const content = await acpReadTextFile(sessionId, params);
       return { content };
     },
