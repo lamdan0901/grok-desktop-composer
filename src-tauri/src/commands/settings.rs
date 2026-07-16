@@ -22,6 +22,8 @@ pub struct AppSettings {
     pub permission_mode: String,
     #[serde(default = "default_model")]
     pub default_model: String,
+    #[serde(default = "default_sandbox_profile")]
+    pub sandbox_profile: String,
     #[serde(default)]
     pub grok_cli_path: String,
     #[serde(default)]
@@ -50,6 +52,10 @@ fn default_model() -> String {
     "".to_string()
 }
 
+fn default_sandbox_profile() -> String {
+    "off".to_string()
+}
+
 fn default_theme() -> String {
     "dark".to_string()
 }
@@ -59,6 +65,7 @@ impl Default for AppSettings {
         Self {
             permission_mode: default_permission_mode(),
             default_model: default_model(),
+            sandbox_profile: default_sandbox_profile(),
             grok_cli_path: String::new(),
             last_project_paths: Vec::new(),
             open_tabs: Vec::new(),

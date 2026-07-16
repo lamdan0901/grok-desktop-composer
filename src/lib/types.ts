@@ -187,6 +187,7 @@ export interface SessionSnapshot {
 export interface AppSettings {
   permissionMode: PermissionMode;
   defaultModel: string;
+  sandboxProfile: string;
   grokCliPath: string;
   lastProjectPaths: string[];
   /** Persisted as `openTabs` in settings.json (Rust field `open_tabs`). */
@@ -241,6 +242,7 @@ export const PERMISSION_MODE_OPTIONS: {
 export const DEFAULT_SETTINGS: AppSettings = {
   permissionMode: "default",
   defaultModel: "",
+  sandboxProfile: "off",
   grokCliPath: "",
   lastProjectPaths: [],
   openTabs: [],

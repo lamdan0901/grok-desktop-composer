@@ -40,6 +40,22 @@ const ADVANCED_PERMISSION_MODES: PermissionMode[] = [
   "plan",
 ];
 
+const SANDBOX_PROFILE_OPTIONS = [
+  { value: "off", label: "Off", description: "No OS-level sandbox" },
+  {
+    value: "workspace",
+    label: "Workspace",
+    description: "Write only to the project, Grok data, and temp directories",
+  },
+  { value: "devbox", label: "Devbox", description: "Development VM profile" },
+  {
+    value: "read-only",
+    label: "Read-only",
+    description: "Do not write project files",
+  },
+  { value: "strict", label: "Strict", description: "Most restrictive built-in profile" },
+] as const;
+
 const ACCESS_MODE_ICONS = {
   normal: Shield,
   alwaysApprove: BadgeCheck,
@@ -300,15 +316,45 @@ export function SettingsPanel() {
             </div>
 
             <div className="field">
+              <label htmlFor="sandbox-profile">Sandbox profile</label>
+              <select
+                id="sandbox-profile"
+                value={settings.sandboxProfile}
+                onChange={(event) =>
+                  updateSettings({ sandboxProfile: event.target.value }).catch(
+                    (error) => console.error("Sandbox profile update failed", error),
+                  )
+                }
+              >
+                {SANDBOX_PROFILE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                {!SANDBOX_PROFILE_OPTIONS.some(
+                  (option) => option.value === settings.sandboxProfile,
+                ) && (
+                  <option value={settings.sandboxProfile}>
+                    Custom: {settings.sandboxProfile}
+                  </option>
+                )}
+              </select>
+              <p className="hint">
+                {SANDBOX_PROFILE_OPTIONS.find(
+                  (option) => option.value === settings.sandboxProfile,
+                )?.description ?? "Custom profile supplied by Grok configuration."}{" "}
+                Applied with <code>--sandbox</code> when a new agent starts.
+                Sandbox enforcement is irreversible for that process; restart
+                the active thread after changing this setting.
+              </p>
+            </div>
+
+            <div className="field">
               <label htmlFor="default-model">Default model</label>
               {cliModels.length > 0 ? (
                 <select
                   id="default-model"
-                  value={
-                    settings.defaultModel ||
-                    cliModels[0] ||
-                    ""
-                  }
+                  value={settings.defaultModel || cliModels[0] || ""}
                   onChange={(e) =>
                     void updateSettings({ defaultModel: e.target.value })
                   }
