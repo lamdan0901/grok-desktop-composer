@@ -3745,3 +3745,16 @@ button {
   padding: 32px 16px;
   color: var(--text-muted);
 }
+
+.session-history__row-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.session-history__row-wrap .session-history__row {
+  flex: 1;
+}
+
+.session-history__actions {
+  flex: 0 0 auto;
+}

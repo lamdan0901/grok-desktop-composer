@@ -30,6 +30,12 @@ import { pushRecentProject } from "@/lib/recentProjects";
 import { formatRelativeShort } from "@/lib/relativeTime";
 import { useSettingsStore } from "@/stores/settingsStore";
 import {
+  deleteSession,
+  forkSession,
+  renameSession,
+} from "@/lib/acp/xaiSession";
+import {
+  getSessionCwd,
   isSessionSidebarBusy,
   useWorkspaceStore,
 } from "@/stores/workspaceStore";
@@ -65,12 +71,14 @@ function ThreadRow({
   activeSessionId,
   onSelect,
   onDelete,
+  onOpenActions,
 }: {
   session: Session;
   active: boolean;
   activeSessionId: string | null;
   onSelect: () => void;
   onDelete: () => void;
+  onOpenActions?: (anchor: HTMLElement) => void;
 }) {
   const busy = isSessionSidebarBusy(session, activeSessionId);
   const threadTitle = displayThreadTitle(session);
@@ -94,6 +102,19 @@ function ThreadRow({
           )}
         </span>
       </button>
+      {onOpenActions && (
+        <button
+          type="button"
+          className="codex-thread__delete codex-icon-btn"
+          aria-label={`Actions for ${threadTitle}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenActions(event.currentTarget);
+          }}
+        >
+          <MoreHorizontal size={13} />
+        </button>
+      )}
       <button
         type="button"
         className="codex-thread__delete codex-icon-btn"
@@ -117,6 +138,7 @@ function SidebarThreadList({
   onShowLess,
   onSelectSession,
   onDeleteSession,
+  onOpenSessionActions,
   wrapClassName,
 }: {
   sessions: Session[];
@@ -126,6 +148,7 @@ function SidebarThreadList({
   onShowLess: () => void;
   onSelectSession: (id: string) => void;
   onDeleteSession: (id: string) => void;
+  onOpenSessionActions: (id: string, anchor: HTMLElement) => void;
   wrapClassName?: string;
 }) {
   const sorted = sortSessionsNewestFirst(
@@ -164,6 +187,11 @@ function SidebarThreadList({
             activeSessionId={activeSessionId}
             onSelect={() => onSelectSession(session.id)}
             onDelete={() => onDeleteSession(session.id)}
+            onOpenActions={
+              session.grokSessionId
+                ? (anchor) => onOpenSessionActions(session.id, anchor)
+                : undefined
+            }
           />
         ))}
       </div>
@@ -201,6 +229,7 @@ function ProjectBlock({
   onOpenMenu,
   onNewThread,
   onDeleteSession,
+  onOpenSessionActions,
   onShowMore,
   onShowLess,
 }: {
@@ -215,6 +244,7 @@ function ProjectBlock({
   onOpenMenu: (anchor: HTMLElement) => void;
   onNewThread: () => void;
   onDeleteSession: (id: string) => void;
+  onOpenSessionActions: (id: string, anchor: HTMLElement) => void;
   onShowMore: () => void;
   onShowLess: () => void;
 }) {
@@ -272,6 +302,7 @@ function ProjectBlock({
           onShowLess={onShowLess}
           onSelectSession={onSelectSession}
           onDeleteSession={onDeleteSession}
+          onOpenSessionActions={onOpenSessionActions}
         />
       )}
     </div>
@@ -344,6 +375,14 @@ export function WorkspaceSidebar() {
   const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [sessionMenu, setSessionMenu] = useState<{
+    sessionId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [unsupportedSessionActions, setUnsupportedSessionActions] = useState<
+    Set<string>
+  >(new Set());
   const refreshSpin = useRef(false);
   const [, setRefreshTick] = useState(0);
 
@@ -361,6 +400,8 @@ export function WorkspaceSidebar() {
   const renameProject = useWorkspaceStore((s) => s.renameProject);
   const archiveProjectSessions = useWorkspaceStore((s) => s.archiveProjectSessions);
   const setActiveSession = useWorkspaceStore((s) => s.setActiveSession);
+  const setSessionTitle = useWorkspaceStore((s) => s.setSessionTitle);
+  const openResumedSession = useWorkspaceStore((s) => s.openResumedSession);
   const pinnedPaths = useSettingsStore((s) => s.settings.pinnedProjectPaths);
   const expandedProjectCwds = useSettingsStore(
     (s) => s.settings.expandedProjectCwds ?? [],
@@ -427,6 +468,9 @@ export function WorkspaceSidebar() {
 
   const menuProject = menu
     ? projects.find((p) => p.id === menu.projectId)
+    : undefined;
+  const menuSession = sessionMenu
+    ? sessions.find((session) => session.id === sessionMenu.sessionId)
     : undefined;
 
   const openHistory = useCallback((projectCwd?: string) => {
@@ -586,6 +630,98 @@ export function WorkspaceSidebar() {
     ],
     [showPinnedOnly, openHistory],
   );
+
+  const markSessionActionUnsupported = (action: string) =>
+    setUnsupportedSessionActions((current) => new Set(current).add(action));
+
+  const reportSessionActionError = (action: string, error: unknown) => {
+    window.alert(
+      error instanceof Error ? error.message : `Failed to ${action} session`,
+    );
+  };
+
+  const renameOpenSession = async (session: Session) => {
+    if (!session.grokSessionId) return;
+    const title = window.prompt("Rename session", session.title)?.trim();
+    if (!title) return;
+    if (!(await renameSession(session.id, session.grokSessionId, title))) {
+      markSessionActionUnsupported("rename");
+      return;
+    }
+    setSessionTitle(session.id, title);
+  };
+
+  const forkOpenSession = async (session: Session) => {
+    if (!session.grokSessionId) return;
+    const forked = await forkSession(session.id, session.grokSessionId);
+    if (!forked) {
+      markSessionActionUnsupported("fork");
+      return;
+    }
+    const cwd = forked.cwd ?? getSessionCwd(session, projects);
+    if (!cwd) throw new Error("Could not resolve project folder for the forked session");
+    openResumedSession(
+      cwd,
+      forked.sessionId,
+      forked.title ?? `${displayThreadTitle(session)} fork`,
+    );
+  };
+
+  const deleteOpenSession = async (session: Session) => {
+    if (
+      !session.grokSessionId ||
+      !window.confirm("Delete this session from Grok history? This cannot be undone.")
+    ) {
+      return;
+    }
+    if (!(await deleteSession(session.id, session.grokSessionId))) {
+      markSessionActionUnsupported("delete");
+      return;
+    }
+    await closeSession(session.id);
+  };
+
+  const sessionMenuItems: SidebarMenuItem[] = menuSession
+    ? [
+        ...(!unsupportedSessionActions.has("rename")
+          ? [{
+              id: "session-rename",
+              label: "Rename session",
+              icon: <Pencil size={14} />,
+              onClick: () => {
+                renameOpenSession(menuSession).catch((error) =>
+                  reportSessionActionError("rename", error),
+                );
+              },
+            }]
+          : []),
+        ...(!unsupportedSessionActions.has("fork")
+          ? [{
+              id: "session-fork",
+              label: "Fork session",
+              icon: <GitBranch size={14} />,
+              onClick: () => {
+                forkOpenSession(menuSession).catch((error) =>
+                  reportSessionActionError("fork", error),
+                );
+              },
+            }]
+          : []),
+        ...(!unsupportedSessionActions.has("delete")
+          ? [{
+              id: "session-delete",
+              label: "Delete from Grok history",
+              icon: <Trash2 size={14} />,
+              danger: true,
+              onClick: () => {
+                deleteOpenSession(menuSession).catch((error) =>
+                  reportSessionActionError("delete", error),
+                );
+              },
+            }]
+          : []),
+      ]
+    : [];
 
   useEffect(() => {
     const id = window.setInterval(() => setRefreshTick((n) => n + 1), 60_000);
@@ -755,6 +891,14 @@ export function WorkspaceSidebar() {
                       }}
                       onNewThread={() => prepareNewThread(project.id)}
                       onDeleteSession={(id) => void closeSession(id)}
+                      onOpenSessionActions={(id, anchor) => {
+                        const rect = anchor.getBoundingClientRect();
+                        setSessionMenu({
+                          sessionId: id,
+                          x: rect.left,
+                          y: rect.bottom + 4,
+                        });
+                      }}
                     />
                   );
                 })
@@ -796,6 +940,14 @@ export function WorkspaceSidebar() {
                   }
                   onSelectSession={setActiveSession}
                   onDeleteSession={(id) => void closeSession(id)}
+                  onOpenSessionActions={(id, anchor) => {
+                    const rect = anchor.getBoundingClientRect();
+                    setSessionMenu({
+                      sessionId: id,
+                      x: rect.left,
+                      y: rect.bottom + 4,
+                    });
+                  }}
                   wrapClassName="codex-chats-list"
                 />
               )}
@@ -815,6 +967,13 @@ export function WorkspaceSidebar() {
         y={menu?.y ?? 0}
         items={projectMenuItems}
         onClose={() => setMenu(null)}
+      />
+      <SidebarMenu
+        open={sessionMenu != null}
+        x={sessionMenu?.x ?? 0}
+        y={sessionMenu?.y ?? 0}
+        items={sessionMenuItems}
+        onClose={() => setSessionMenu(null)}
       />
       <SidebarMenu
         open={headerMenu != null}
