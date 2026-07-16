@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Composer } from "./Composer";
 
-const { mockSendPrompt } = vi.hoisted(() => ({
-  mockSendPrompt: vi.fn(),
-}));
-
 vi.mock("@/lib/acp", () => ({
-  getTabSession: () => ({ sendPrompt: mockSendPrompt }),
 }));
 vi.mock("@/lib/ensureAcpForSend", () => ({
   ensureAcpForSend: vi.fn().mockResolvedValue(undefined),
@@ -65,12 +60,13 @@ vi.mock("./ComposerAttachmentStrip", () => ({
   ComposerFileInput: () => null,
 }));
 vi.mock("./ComposerTextarea", () => ({
-  ComposerTextarea: () => <textarea aria-label="Prompt" />,
+  ComposerTextarea: ({ disabled }: { disabled?: boolean }) => (
+    <textarea aria-label="Prompt" disabled={disabled} />
+  ),
 }));
 
 describe("Composer", () => {
   beforeEach(() => {
-    mockSendPrompt.mockReset().mockResolvedValue(undefined);
     useWorkspaceStore.setState({
       projects: [{ id: "p1", cwd: "C:\\repo", name: "repo" }],
       sessions: [{
@@ -92,13 +88,24 @@ describe("Composer", () => {
     cleanup();
   });
 
-  it("submits /compact from the compact conversation button", async () => {
+  it("does not render a manual compact button", () => {
     render(<Composer />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Compact conversation" }));
+    expect(screen.queryByRole("button", { name: "Compact conversation" })).toBeNull();
+  });
 
-    await waitFor(() =>
-      expect(mockSendPrompt).toHaveBeenCalledWith("/compact", expect.anything()),
-    );
+  it("uses the main composer input for interjection during an active turn", () => {
+    useWorkspaceStore.setState((state) => ({
+      sessions: state.sessions.map((session) => ({
+        ...session,
+        status: "running",
+      })),
+    }));
+
+    render(<Composer />);
+
+    expect(screen.queryByRole("textbox", { name: "Active turn interjection" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Interject active turn" })).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Prompt" }) as HTMLTextAreaElement).disabled).toBe(false);
   });
 });

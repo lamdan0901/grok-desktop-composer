@@ -11,7 +11,9 @@ type ComposerTextareaProps = {
   maxHeight?: number;
   /** When this value changes, focus the textarea (e.g. active thread id). */
   focusKey?: string | null;
+  cursor?: number;
   onChange: (value: string) => void;
+  onCursorChange?: (cursor: number) => void;
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 };
@@ -25,9 +27,11 @@ export function ComposerTextarea({
   disabled,
   maxHeight,
   onChange,
+  onCursorChange,
   onKeyDown,
   onPaste,
   focusKey,
+  cursor,
 }: ComposerTextareaProps) {
   const { ref, adjust } = useAutoResizeTextarea(value, maxHeight);
 
@@ -38,6 +42,13 @@ export function ComposerTextarea({
     });
     return () => cancelAnimationFrame(frame);
   }, [focusKey, ref]);
+
+  useEffect(() => {
+    if (cursor == null) return;
+    const textarea = ref.current;
+    if (!textarea || textarea.selectionEnd !== textarea.selectionStart) return;
+    textarea.setSelectionRange(cursor, cursor);
+  }, [cursor, ref, value]);
 
   return (
     <div
@@ -51,7 +62,12 @@ export function ComposerTextarea({
         placeholder={placeholder}
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          onCursorChange?.(e.currentTarget.selectionStart);
+        }}
+        onSelect={(e) => onCursorChange?.(e.currentTarget.selectionStart)}
+        onKeyUp={(e) => onCursorChange?.(e.currentTarget.selectionStart)}
         onKeyDown={onKeyDown}
         onPaste={onPaste}
         onInput={adjust}

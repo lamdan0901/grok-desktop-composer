@@ -16,6 +16,7 @@ import { formatModelName } from "@/lib/formatModelName";
 import { useCancelThreadOnEscape } from "@/hooks/useCancelThreadOnEscape";
 import { useComposerAccessModeCycle } from "@/hooks/useComposerAccessModeCycle";
 import { useComposerModelCycle } from "@/hooks/useComposerModelCycle";
+import { useFileMentions } from "@/hooks/useFileMentions";
 
 import { AccessModePill } from "./AccessModePill";
 import { ModelSelectorDropdown } from "./ModelSelectorDropdown";
@@ -25,6 +26,7 @@ import {
 } from "./ComposerAttachmentStrip";
 import { ComposerTextarea } from "./ComposerTextarea";
 import { SlashCommandPicker } from "./SlashCommandPicker";
+import { FileMentionPicker } from "./FileMentionPicker";
 import { useComposerAttachments } from "@/hooks/useComposerAttachments";
 import { useSlashCommands } from "@/hooks/useSlashCommands";
 import { usePromptHistory } from "@/hooks/usePromptHistory";
@@ -53,6 +55,7 @@ import {
 } from "@/lib/sessionEmpty";
 export function HomeView() {
   const [text, setText] = useState("");
+  const [cursor, setCursor] = useState(0);
   const [sending, setSending] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 
@@ -140,6 +143,15 @@ export function HomeView() {
     text,
     setText,
     disabled: !slashSession?.id || !activeProject?.cwd || sending,
+    pickerAnchorRef: slashAnchorRef,
+  });
+  const fileMentions = useFileMentions({
+    cwd: activeProject?.cwd,
+    text,
+    cursor,
+    setText,
+    setCursor,
+    disabled: !activeProject?.cwd || sending,
     pickerAnchorRef: slashAnchorRef,
   });
 
@@ -247,6 +259,7 @@ export function HomeView() {
 
     setSending(true);
     setText("");
+    setCursor(0);
     clear();
     addUserMessage(session.id, promptText, messageAttachments);
 
@@ -282,6 +295,7 @@ export function HomeView() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (slash.handleKeyDown(e)) return;
+    if (fileMentions.handleKeyDown(e)) return;
     handleAccessModeKeyDown(e);
     handleModelKeyDown(e);
     if (handleHistoryKeyDown(e)) return;
@@ -310,6 +324,13 @@ export function HomeView() {
           loadingCommands={slash.loadingCommands}
           onSelect={slash.applyEntry}
         />
+        <FileMentionPicker
+          open={fileMentions.menuOpen}
+          anchorRef={slashAnchorRef}
+          items={fileMentions.filtered}
+          activeIndex={fileMentions.activeIndex}
+          onSelect={fileMentions.applyEntry}
+        />
         <ComposerTextarea
           anchorRef={slashAnchorRef}
           className="home-composer__input"
@@ -318,7 +339,9 @@ export function HomeView() {
           value={text}
           disabled={sending}
           focusKey={activeSessionId}
+          cursor={cursor}
           onChange={setText}
+          onCursorChange={setCursor}
           onKeyDown={handleKeyDown}
           onPaste={(e) => void handlePaste(e)}
         />

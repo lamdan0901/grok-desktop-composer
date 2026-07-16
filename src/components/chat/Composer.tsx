@@ -1,8 +1,9 @@
-import { ArrowUp, Paperclip, Square } from "lucide-react";
+import { ArrowUp, Paperclip, Square, Zap } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useComposerAccessModeCycle } from "@/hooks/useComposerAccessModeCycle";
 import { useComposerAttachments } from "@/hooks/useComposerAttachments";
 import { useComposerModelCycle } from "@/hooks/useComposerModelCycle";
+import { useFileMentions } from "@/hooks/useFileMentions";
 import { AccessModePill } from "./AccessModePill";
 import {
   ComposerAttachmentStrip,
@@ -12,6 +13,7 @@ import { ComposerTextarea } from "./ComposerTextarea";
 import { ModelSelector } from "./ModelSelector";
 import { SlashCommandPicker } from "./SlashCommandPicker";
 import { UsageBar } from "./UsageBar";
+import { FileMentionPicker } from "./FileMentionPicker";
 import { useCancelThreadOnEscape } from "@/hooks/useCancelThreadOnEscape";
 import { useSlashCommands } from "@/hooks/useSlashCommands";
 import { usePromptHistory } from "@/hooks/usePromptHistory";
@@ -28,7 +30,6 @@ import {
 } from "@/lib/composerAttachments";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
-import { CONTEXT_COMPACT_THRESHOLD_PCT } from "@/lib/usage";
 import { interjectActiveTurn } from "@/lib/acp/xaiQueue";
 import {
   getSessionCwd,
@@ -37,8 +38,8 @@ import {
 
 export function Composer() {
   const [text, setText] = useState("");
+  const [cursor, setCursor] = useState(0);
   const [sending, setSending] = useState(false);
-  const [interjectText, setInterjectText] = useState("");
   const [interjectSupported, setInterjectSupported] = useState(true);
   const slashAnchorRef = useRef<HTMLDivElement>(null);
   const { handleAccessModeKeyDown } = useComposerAccessModeCycle();
@@ -87,6 +88,15 @@ export function Composer() {
     disabled: !session?.id || !cwd || sending,
     pickerAnchorRef: slashAnchorRef,
   });
+  const fileMentions = useFileMentions({
+    cwd,
+    text,
+    cursor,
+    setText,
+    setCursor,
+    disabled: blocked || sending,
+    pickerAnchorRef: slashAnchorRef,
+  });
 
   const { handleKeyDown: handleHistoryKeyDown, commitPrompt } = usePromptHistory({
     text,
@@ -127,6 +137,7 @@ export function Composer() {
 
     setSending(true);
     setText("");
+    setCursor(0);
     clear();
     addUserMessage(session.id, promptText, messageAttachments);
 
@@ -161,6 +172,7 @@ export function Composer() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (slash.handleKeyDown(e)) return;
+    if (fileMentions.handleKeyDown(e)) return;
     handleAccessModeKeyDown(e);
     handleModelKeyDown(e);
     if (handleHistoryKeyDown(e)) return;
@@ -186,14 +198,14 @@ export function Composer() {
   };
 
   const handleInterject = async () => {
-    const next = interjectText.trim();
+    const next = text.trim();
     if (!session || !next) return;
     try {
       if (!(await interjectActiveTurn(session.id, next))) {
         setInterjectSupported(false);
         return;
       }
-      setInterjectText("");
+      setText("");
     } catch (error) {
       appendError(
         session.id,
@@ -222,36 +234,6 @@ export function Composer() {
         <div className="composer__toolbar-left">
           <AccessModePill variant="session" />
           <ModelSelector />
-          <button
-            type="button"
-            className="composer__compact-btn"
-            aria-label="Compact conversation"
-            title={`Compact conversation (auto-compacts at ${CONTEXT_COMPACT_THRESHOLD_PCT}%)`}
-            disabled={blocked || sending}
-            onClick={async () => {
-              await handleSend("/compact");
-            }}
-          >
-            Compact
-          </button>
-          {isGenerating && interjectSupported && (
-            <>
-              <input
-                type="text"
-                aria-label="Active turn interjection"
-                value={interjectText}
-                onChange={(event) => setInterjectText(event.target.value)}
-              />
-              <button
-                type="button"
-                aria-label="Interject active turn"
-                disabled={!interjectText.trim()}
-                onClick={handleInterject}
-              >
-                Interject
-              </button>
-            </>
-          )}
         </div>
         <UsageBar />
       </div>
@@ -280,6 +262,13 @@ export function Composer() {
             loadingCommands={slash.loadingCommands}
             onSelect={slash.applyEntry}
           />
+          <FileMentionPicker
+            open={fileMentions.menuOpen}
+            anchorRef={slashAnchorRef}
+            items={fileMentions.filtered}
+            activeIndex={fileMentions.activeIndex}
+            onSelect={fileMentions.applyEntry}
+          />
           <ComposerTextarea
             anchorRef={slashAnchorRef}
             className="composer__input"
@@ -288,10 +277,24 @@ export function Composer() {
             value={text}
             disabled={blocked || sending}
             focusKey={activeSessionId}
+            cursor={cursor}
             onChange={setText}
+            onCursorChange={setCursor}
             onKeyDown={handleKeyDown}
             onPaste={(e) => void handlePaste(e)}
           />
+          {isGenerating && interjectSupported && (
+            <button
+              type="button"
+              className="composer__interject-btn"
+              aria-label="Interject active turn"
+              title="Interject active turn"
+              disabled={!text.trim()}
+              onClick={handleInterject}
+            >
+              <Zap size={15} />
+            </button>
+          )}
           <button
             type="button"
             className={`composer__submit${isGenerating ? " composer__submit--stop" : ""}`}

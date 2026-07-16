@@ -28,3 +28,5 @@ src-tauri/target
 
 # Temp scaffold clone
 _cta-tmp
+
+grok-build
