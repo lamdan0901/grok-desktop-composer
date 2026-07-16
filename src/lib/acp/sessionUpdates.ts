@@ -21,6 +21,7 @@ import {
   touchHistoryReplay,
 } from "@/lib/historyReplay";
 import type { SessionId } from "@/lib/types";
+import { applySubagentUpdate } from "./subagentUpdates";
 import { readPlanFile, watchPlanFile } from "@/lib/grok";
 import {
   extractPlanContentFromUpdate,
@@ -425,6 +426,12 @@ export function applySessionNotification(
     store.finalizeThoughts(sessionId);
     store.setSessionStatus(sessionId, "idle");
   };
+
+  // Real subagent lifecycle events take priority over the tool-call heuristic.
+  if (applySubagentUpdate(sessionId, raw)) {
+    if (isHistoryReplay(sessionId)) touchHistoryReplay(sessionId, finishReplay);
+    return;
+  }
 
   switch (update.sessionUpdate) {
     case "user_message_chunk": {
