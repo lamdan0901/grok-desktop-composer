@@ -1,5 +1,6 @@
 import type { SessionId } from "@/lib/types";
 import { XAI } from "./xaiMethods";
+import { ingestQueueSnapshot } from "@/stores/queueStore";
 import { ingestTaskNotification } from "@/stores/taskStore";
 import { markNotificationSeen } from "./featureDetection";
 
@@ -17,6 +18,10 @@ export function routeExtNotification(
   params: unknown,
 ): boolean {
   switch (method) {
+    case XAI.queueChanged.method:
+      markNotificationSeen(sessionId, method);
+      ingestQueueSnapshot(sessionId, params);
+      return true;
     case XAI.taskBackgrounded.method:
     case XAI.taskCompleted.method:
     case XAI.monitorEvent.method:

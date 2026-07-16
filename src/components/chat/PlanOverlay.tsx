@@ -2,6 +2,11 @@ import { useCallback, useState } from "react";
 import { X, ClipboardList } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 import { approvePlan, revisePlan } from "@/lib/plan";
+import {
+  formatPlanComments,
+  sendApprovedPlanComments,
+  type PlanComment,
+} from "@/lib/planComments";
 import { usePlanStore } from "@/stores/planStore";
 import { usePlanReviewStore } from "@/stores/planReviewStore";
 import {
@@ -9,9 +14,13 @@ import {
   useWorkspaceStore,
 } from "@/stores/workspaceStore";
 
+const EMPTY_COMMENTS: PlanComment[] = [];
+
 export function PlanOverlay() {
   const [feedback, setFeedback] = useState("");
   const [acting, setActing] = useState(false);
+  const [selectedLine, setSelectedLine] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState("");
 
   const projects = useWorkspaceStore((s) => s.projects);
   const sessions = useWorkspaceStore((s) => s.sessions);
@@ -26,7 +35,16 @@ export function PlanOverlay() {
     activeSessionId != null ? s.pendingBySession[activeSessionId] : undefined,
   );
   const resolveReview = usePlanReviewStore((s) => s.resolve);
+  const comments = usePlanReviewStore((s) =>
+    activeSessionId != null
+      ? s.commentsBySession[activeSessionId] ?? EMPTY_COMMENTS
+      : EMPTY_COMMENTS,
+  );
+  const addComment = usePlanReviewStore((s) => s.addComment);
+  const removeComment = usePlanReviewStore((s) => s.removeComment);
+  const clearComments = usePlanReviewStore((s) => s.clearComments);
   const setSessionStatus = useWorkspaceStore((s) => s.setSessionStatus);
+  const appendError = useWorkspaceStore((s) => s.appendError);
 
   const visible = session?.status === "plan_review";
 
@@ -38,6 +56,21 @@ export function PlanOverlay() {
       resolveReview(activeSessionId, { outcome: "approved" });
       setSessionStatus(activeSessionId, "running");
       setFeedback("");
+      if (comments.length > 0) {
+        setActing(true);
+        try {
+          await sendApprovedPlanComments(activeSessionId, comments);
+        } catch (error) {
+          appendError(
+            activeSessionId,
+            error instanceof Error
+              ? error.message
+              : "Failed to send approved plan comments",
+          );
+        } finally {
+          setActing(false);
+        }
+      }
       return;
     }
     if (!cwd) return;
@@ -45,6 +78,7 @@ export function PlanOverlay() {
     try {
       await approvePlan(session.id, cwd);
       setFeedback("");
+      clearComments(session.id);
     } finally {
       setActing(false);
     }
@@ -56,14 +90,20 @@ export function PlanOverlay() {
     activeSessionId,
     resolveReview,
     setSessionStatus,
+    comments,
+    appendError,
+    clearComments,
   ]);
 
   const handleRevise = useCallback(async () => {
     if (!session || acting) return;
+    const combinedFeedback = [formatPlanComments(comments), feedback.trim()]
+      .filter(Boolean)
+      .join("\n\n");
     if (reverseReview && activeSessionId) {
       resolveReview(activeSessionId, {
         outcome: "cancelled",
-        feedback: feedback.trim() || undefined,
+        feedback: combinedFeedback || undefined,
       });
       setSessionStatus(activeSessionId, "running");
       setFeedback("");
@@ -72,8 +112,9 @@ export function PlanOverlay() {
     if (!cwd) return;
     setActing(true);
     try {
-      await revisePlan(session.id, cwd, feedback);
+      await revisePlan(session.id, cwd, combinedFeedback);
       setFeedback("");
+      clearComments(session.id);
     } finally {
       setActing(false);
     }
@@ -86,12 +127,28 @@ export function PlanOverlay() {
     activeSessionId,
     resolveReview,
     setSessionStatus,
+    comments,
+    clearComments,
   ]);
 
   if (!visible || !session) return null;
 
   const content = plan?.content?.trim();
   const showEmpty = !content && !plan?.loading;
+  const lines = (content ?? "").split("\n");
+
+  const saveComment = () => {
+    const text = commentText.trim();
+    if (!activeSessionId || selectedLine == null || !text) return;
+    const comment: PlanComment = {
+      id: crypto.randomUUID(),
+      line: selectedLine,
+      text,
+    };
+    addComment(activeSessionId, comment);
+    setSelectedLine(null);
+    setCommentText("");
+  };
 
   return (
     <div className="plan-overlay" role="dialog" aria-label="Plan review">
@@ -126,9 +183,72 @@ export function PlanOverlay() {
               <code>plan.md</code>…
             </p>
           ) : (
-            <div className="plan-overlay__markdown message__markdown">
-              <MarkdownContent>{content ?? ""}</MarkdownContent>
-            </div>
+            <ol className="plan-overlay__lines">
+              {lines.map((line, index) => {
+                const lineNumber = index + 1;
+                return (
+                  <li key={lineNumber} className="plan-overlay__line">
+                    <span className="plan-overlay__line-number">{lineNumber}</span>
+                    <div className="plan-overlay__line-text message__markdown">
+                      <MarkdownContent>{line || " "}</MarkdownContent>
+                    </div>
+                    <button
+                      type="button"
+                      className="plan-overlay__line-comment-btn"
+                      aria-label={`Add comment to line ${lineNumber}`}
+                      onClick={() => {
+                        setSelectedLine(lineNumber);
+                        setCommentText("");
+                      }}
+                    >
+                      +
+                    </button>
+                    {selectedLine === lineNumber && (
+                      <div className="plan-overlay__comment-editor">
+                        <label htmlFor={`plan-comment-${lineNumber}`}>
+                          Comment for line {lineNumber}
+                        </label>
+                        <textarea
+                          id={`plan-comment-${lineNumber}`}
+                          value={commentText}
+                          onChange={(event) => setCommentText(event.target.value)}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Save line comment"
+                          disabled={!commentText.trim()}
+                          onClick={saveComment}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLine(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {activeSessionId && comments.length > 0 && (
+            <ul className="plan-overlay__comments" aria-label="Plan comments">
+              {comments.map((comment) => (
+                <li key={comment.id}>
+                  Line {comment.line}: {comment.text}
+                  <button
+                    type="button"
+                    aria-label={`Remove comment from line ${comment.line}`}
+                    onClick={() => removeComment(activeSessionId, comment.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 

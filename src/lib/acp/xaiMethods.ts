@@ -65,6 +65,41 @@ export const XAI = {
   taskKill: entry("x.ai/task/kill", "gui->agent", "request"),
   schedulerDelete: entry("x.ai/scheduler/delete", "gui->agent", "request"),
 
+  // ── Rewind (gui -> agent requests) ────────────────────────────────
+  rewindPoints: entry("x.ai/rewind/points", "gui->agent", "request"),
+  rewindExecute: entry("x.ai/rewind/execute", "gui->agent", "request"),
+
+  // ── Plain session actions (gui -> agent requests) ─────────────────
+  sessionFork: entry("x.ai/session/fork", "gui->agent", "request"),
+  sessionDelete: entry("x.ai/session/delete", "gui->agent", "request"),
+  sessionRename: entry("x.ai/session/rename", "gui->agent", "request"),
+
+  // ── Git worktree session fork (gui -> agent requests) ─────────────
+  gitWorktreeCreateFromSync: entry(
+    "x.ai/git/worktree/create_from_worktree_sync",
+    "gui->agent",
+    "request",
+  ),
+  gitWorktreeResumeSession: entry(
+    "x.ai/git/worktree/resume_session",
+    "gui->agent",
+    "request",
+  ),
+
+  // ── Prompt queue / interject ──────────────────────────────────────
+  queueChanged: entry(
+    "x.ai/queue/changed",
+    "agent->gui",
+    "notification",
+    "none",
+    "mixed",
+  ),
+  queueRemove: entry("x.ai/queue/remove", "gui->agent", "notification"),
+  queueReorder: entry("x.ai/queue/reorder", "gui->agent", "notification"),
+  queueClear: entry("x.ai/queue/clear", "gui->agent", "notification"),
+  queueInterject: entry("x.ai/queue/interject", "gui->agent", "notification"),
+  interject: entry("x.ai/interject", "gui->agent", "request"),
+
   // ── Task / scheduler / monitor notifications (agent -> gui) ────────
   // Scheduled-task events replay on session/load so the pane is reconstructed.
   taskBackgrounded: entry("x.ai/task_backgrounded", "agent->gui", "notification", "none", "snake_case"),

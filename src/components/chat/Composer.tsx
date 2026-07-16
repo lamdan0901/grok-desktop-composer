@@ -28,6 +28,8 @@ import {
 } from "@/lib/composerAttachments";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
+import { CONTEXT_COMPACT_THRESHOLD_PCT } from "@/lib/usage";
+import { interjectActiveTurn } from "@/lib/acp/xaiQueue";
 import {
   getSessionCwd,
   useWorkspaceStore,
@@ -36,6 +38,8 @@ import {
 export function Composer() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [interjectText, setInterjectText] = useState("");
+  const [interjectSupported, setInterjectSupported] = useState(true);
   const slashAnchorRef = useRef<HTMLDivElement>(null);
   const { handleAccessModeKeyDown } = useComposerAccessModeCycle();
   const { handleModelKeyDown } = useComposerModelCycle();
@@ -89,10 +93,19 @@ export function Composer() {
     setText,
   });
 
-  const handleSend = useCallback(async () => {
-    if (!canSend || blocked || sending || !session || !cwd) return;
+  const handleSend = useCallback(async (overrideText?: string) => {
+    const nextText = overrideText ?? text;
+    if (
+      !canSendComposer(nextText, attachments.length) ||
+      blocked ||
+      sending ||
+      !session ||
+      !cwd
+    ) {
+      return;
+    }
 
-    const trimmed = text.trim();
+    const trimmed = nextText.trim();
     const slashResult = executeSlashCommand(trimmed);
     if (slashResult.handled) {
       if (!slashResult.forwardText) {
@@ -172,6 +185,23 @@ export function Composer() {
     setSending(false);
   };
 
+  const handleInterject = async () => {
+    const next = interjectText.trim();
+    if (!session || !next) return;
+    try {
+      if (!(await interjectActiveTurn(session.id, next))) {
+        setInterjectSupported(false);
+        return;
+      }
+      setInterjectText("");
+    } catch (error) {
+      appendError(
+        session.id,
+        error instanceof Error ? error.message : "Failed to interject active turn",
+      );
+    }
+  };
+
   if (shouldShowHomeComposer(activeSessionId, session)) return null;
 
   const placeholder = !session
@@ -192,6 +222,36 @@ export function Composer() {
         <div className="composer__toolbar-left">
           <AccessModePill variant="session" />
           <ModelSelector />
+          <button
+            type="button"
+            className="composer__compact-btn"
+            aria-label="Compact conversation"
+            title={`Compact conversation (auto-compacts at ${CONTEXT_COMPACT_THRESHOLD_PCT}%)`}
+            disabled={blocked || sending}
+            onClick={async () => {
+              await handleSend("/compact");
+            }}
+          >
+            Compact
+          </button>
+          {isGenerating && interjectSupported && (
+            <>
+              <input
+                type="text"
+                aria-label="Active turn interjection"
+                value={interjectText}
+                onChange={(event) => setInterjectText(event.target.value)}
+              />
+              <button
+                type="button"
+                aria-label="Interject active turn"
+                disabled={!interjectText.trim()}
+                onClick={handleInterject}
+              >
+                Interject
+              </button>
+            </>
+          )}
         </div>
         <UsageBar />
       </div>
