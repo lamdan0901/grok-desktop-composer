@@ -37,6 +37,7 @@ import {
 } from "@/lib/agentOutputGuard";
 import { clearComposerFileToolDedupe } from "./applyComposerFileTool";
 import { createClientHandler } from "./createClientHandler";
+import { clearFeatureCache } from "./featureDetection";
 import { clearTabLineHandlers } from "./lineRouter";
 import { createTauriAcpStream } from "./tauriStream";
 
@@ -482,6 +483,7 @@ export class TabAcpSession {
     useSessionConfigStore.getState().clearSession(this.tabId);
     clearSlashCommandsInflight(this.tabId);
     useSlashCommandsStore.getState().clearSession(this.tabId);
+    clearFeatureCache(this.tabId);
     cancelHistoryReplay(this.tabId);
   }
 

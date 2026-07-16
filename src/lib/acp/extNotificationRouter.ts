@@ -1,6 +1,7 @@
 import type { SessionId } from "@/lib/types";
 import { XAI } from "./xaiMethods";
 import { ingestTaskNotification } from "@/stores/taskStore";
+import { markNotificationSeen } from "./featureDetection";
 
 /**
  * Route a dedicated (non-generic) ext-notification to its store. Returns true
@@ -23,6 +24,7 @@ export function routeExtNotification(
     case XAI.scheduledTaskFired.method:
     case XAI.scheduledTaskDeleted.method:
     case XAI.scheduledTaskInjectPrompt.method:
+      markNotificationSeen(sessionId, method);
       ingestTaskNotification(sessionId, method, params as Record<string, unknown>);
       return true;
     default:
