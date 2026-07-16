@@ -14,6 +14,8 @@ export type ComposerAttachment = {
   previewUrl: string;
 };
 
+export type PromptImage = Pick<ComposerAttachment, "mimeType" | "data">;
+
 function newAttachmentId(): string {
   return crypto.randomUUID();
 }
@@ -111,7 +113,7 @@ export function toUserMessageAttachments(
 
 export function toPromptContentBlocks(
   text: string,
-  attachments: ComposerAttachment[],
+  attachments: readonly PromptImage[],
 ): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   const trimmed = text.trim();
