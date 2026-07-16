@@ -31,6 +31,7 @@ import { useQuestionStore } from "@/stores/questionStore";
 import { usePlanReviewStore } from "@/stores/planReviewStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useMcpStore } from "@/stores/mcpStore";
+import { useRewindStore } from "@/stores/rewindStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
 import { isBenignAttachError } from "@/lib/acpErrors";
 import {
@@ -457,6 +458,8 @@ export class TabAcpSession {
       stopTitleRefreshWhileTurn(this.tabId);
       refreshTitleAfterTurn(this.tabId);
       refreshUsageAfterTurn(this.tabId);
+      const { listRewindPoints } = await import("./xaiRewind");
+      await listRewindPoints(this.tabId).catch(() => undefined);
     }
   }
 
@@ -488,6 +491,7 @@ export class TabAcpSession {
     clearFeatureCache(this.tabId);
     useTaskStore.getState().clearTab(this.tabId);
     useMcpStore.getState().clearTab(this.tabId);
+    useRewindStore.getState().clearSession(this.tabId);
     cancelHistoryReplay(this.tabId);
   }
 

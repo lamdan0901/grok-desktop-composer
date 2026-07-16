@@ -65,6 +65,10 @@ export const XAI = {
   taskKill: entry("x.ai/task/kill", "gui->agent", "request"),
   schedulerDelete: entry("x.ai/scheduler/delete", "gui->agent", "request"),
 
+  // ── Rewind (gui -> agent requests) ────────────────────────────────
+  rewindPoints: entry("x.ai/rewind/points", "gui->agent", "request"),
+  rewindExecute: entry("x.ai/rewind/execute", "gui->agent", "request"),
+
   // ── Task / scheduler / monitor notifications (agent -> gui) ────────
   // Scheduled-task events replay on session/load so the pane is reconstructed.
   taskBackgrounded: entry("x.ai/task_backgrounded", "agent->gui", "notification", "none", "snake_case"),
