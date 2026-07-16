@@ -74,6 +74,18 @@ export const XAI = {
   sessionDelete: entry("x.ai/session/delete", "gui->agent", "request"),
   sessionRename: entry("x.ai/session/rename", "gui->agent", "request"),
 
+  // ── Git worktree session fork (gui -> agent requests) ─────────────
+  gitWorktreeCreateFromSync: entry(
+    "x.ai/git/worktree/create_from_worktree_sync",
+    "gui->agent",
+    "request",
+  ),
+  gitWorktreeResumeSession: entry(
+    "x.ai/git/worktree/resume_session",
+    "gui->agent",
+    "request",
+  ),
+
   // ── Task / scheduler / monitor notifications (agent -> gui) ────────
   // Scheduled-task events replay on session/load so the pane is reconstructed.
   taskBackgrounded: entry("x.ai/task_backgrounded", "agent->gui", "notification", "none", "snake_case"),

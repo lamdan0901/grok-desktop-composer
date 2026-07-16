@@ -28,6 +28,7 @@ import {
   renameSession,
 } from "@/lib/acp/xaiSession";
 import { SidebarMenu, type SidebarMenuItem } from "./SidebarMenu";
+import { forkIntoWorktree } from "@/lib/acp/xaiWorktree";
 
 interface SessionHistoryPanelProps {
   open: boolean;
@@ -184,6 +185,31 @@ export function SessionHistoryPanel({
     onClose();
   };
 
+  const handleWorktreeFork = async (entry: GrokSessionEntry) => {
+    const tabId = transportTabId(entry);
+    const worktreePath = window.prompt("Worktree folder path")?.trim();
+    if (
+      !tabId ||
+      !worktreePath ||
+      !window.confirm(
+        `Create a git worktree at ${worktreePath}? Files will be created there.`,
+      )
+    ) {
+      return;
+    }
+    const forked = await forkIntoWorktree(tabId, entry.id, worktreePath);
+    if (!forked) {
+      markUnsupported("worktree");
+      return;
+    }
+    openResumedSession(
+      forked.cwd,
+      forked.sessionId,
+      `${entry.summary || "Session"} worktree`,
+    );
+    onClose();
+  };
+
   const reportActionError = (action: string, actionError: unknown) => {
     setError(
       actionError instanceof Error
@@ -227,6 +253,18 @@ export function SessionHistoryPanel({
               onClick: () => {
                 handleDelete(menu.entry).catch((actionError) =>
                   reportActionError("delete", actionError),
+                );
+              },
+            }]
+          : []),
+        ...(!unsupported.has("worktree")
+          ? [{
+              id: "worktree",
+              label: "Fork into worktree…",
+              icon: <GitBranch size={14} />,
+              onClick: () => {
+                handleWorktreeFork(menu.entry).catch((actionError) =>
+                  reportActionError("fork into worktree", actionError),
                 );
               },
             }]
