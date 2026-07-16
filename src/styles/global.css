@@ -2477,6 +2477,56 @@ button {
   padding-left: 1.4em;
 }
 
+.plan-overlay__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 13px/1.5 var(--font-mono);
+}
+
+.plan-overlay__line {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-height: 24px;
+}
+
+.plan-overlay__line-number {
+  color: var(--text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.plan-overlay__line-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.plan-overlay__line-comment-btn {
+  color: var(--text-muted);
+}
+
+.plan-overlay__comment-editor {
+  grid-column: 2 / -1;
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.plan-overlay__comment-editor textarea {
+  min-height: 56px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+}
+
+.plan-overlay__comments {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
 .plan-overlay__status {
   margin: 0;
   color: var(--text-muted);
