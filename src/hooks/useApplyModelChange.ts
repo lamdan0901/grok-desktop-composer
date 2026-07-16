@@ -43,6 +43,10 @@ export function useApplyModelChange() {
   );
   const cliModels = useSessionConfigStore((s) => s.cliModels);
   const cliDefaultModel = useSessionConfigStore((s) => s.cliDefaultModel);
+  const getEffortOptions = useSessionConfigStore((s) => s.getEffortOptions);
+  const getCurrentEffort = useSessionConfigStore((s) => s.getCurrentEffort);
+  const getCurrentModelId = useSessionConfigStore((s) => s.getCurrentModelId);
+  const setCurrentEffort = useSessionConfigStore((s) => s.setCurrentEffort);
   const defaultModel = useSettingsStore((s) => s.settings.defaultModel);
 
   const selector = useMemo(() => {
@@ -99,6 +103,56 @@ export function useApplyModelChange() {
     [session, cwd, selector, restartWithModel, setAcpState],
   );
 
+  const effortOptions = activeSessionId
+    ? getEffortOptions(activeSessionId)
+    : [];
+  const currentEffort = activeSessionId
+    ? getCurrentEffort(activeSessionId)
+    : undefined;
+  const currentModelId = activeSessionId
+    ? getCurrentModelId(activeSessionId)
+    : undefined;
+
+  const applyEffortChange = useCallback(
+    async (effort: string) => {
+      if (
+        !session ||
+        !cwd ||
+        !currentModelId ||
+        currentEffort === effort ||
+        !effortOptions.some((option) => option.value === effort)
+      ) {
+        return;
+      }
+
+      if (session.messages.length > 0) {
+        suppressAgentOutput(session.id);
+      }
+
+      setChanging(true);
+      try {
+        await withTimeout(
+          getTabSession(session.id).setModel(currentModelId, effort),
+          ACP_MODEL_TIMEOUT_MS,
+        );
+        setCurrentEffort(session.id, effort);
+      } catch {
+        setAcpState(session.id, "error", "Failed to change reasoning effort");
+      } finally {
+        setChanging(false);
+      }
+    },
+    [
+      session,
+      cwd,
+      currentModelId,
+      currentEffort,
+      effortOptions,
+      setCurrentEffort,
+      setAcpState,
+    ],
+  );
+
   const disabled =
     !session ||
     !cwd ||
@@ -107,5 +161,13 @@ export function useApplyModelChange() {
     session.status === "awaiting_permission" ||
     changing;
 
-  return { applyModelChange, changing, disabled, selector };
+  return {
+    applyModelChange,
+    applyEffortChange,
+    changing,
+    disabled,
+    selector,
+    effortOptions,
+    currentEffort,
+  };
 }

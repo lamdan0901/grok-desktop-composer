@@ -19,6 +19,7 @@ type ModelSelectorDropdownProps = {
   changing?: boolean;
   variant?: "home" | "session";
   title?: string;
+  ariaLabel?: string;
 };
 
 export function ModelSelectorDropdown({
@@ -29,6 +30,7 @@ export function ModelSelectorDropdown({
   changing = false,
   variant = "session",
   title = "Ctrl+Tab to cycle models",
+  ariaLabel = "Model",
 }: ModelSelectorDropdownProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,7 +61,7 @@ export function ModelSelectorDropdown({
         className={pillClass}
         disabled={disabled}
         title={title}
-        aria-label="Model"
+        aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onClick={() => {

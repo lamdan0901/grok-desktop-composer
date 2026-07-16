@@ -48,4 +48,18 @@ describe("sessionConfigStore effort options", () => {
   it("returns [] for a session with no model state", () => {
     expect(useSessionConfigStore.getState().getEffortOptions("nope")).toEqual([]);
   });
+
+  it("tracks the selected model's current reasoning effort", () => {
+    useSessionConfigStore.getState().setSessionModels("s1", models);
+    expect(useSessionConfigStore.getState().getCurrentEffort("s1")).toBeUndefined();
+
+    useSessionConfigStore.getState().setCurrentEffort("s1", "low");
+
+    expect(useSessionConfigStore.getState().getCurrentEffort("s1")).toBe("low");
+    expect(
+      useSessionConfigStore
+        .getState()
+        .modelsBySession.s1.availableModels[0]?.meta?.reasoningEffort,
+    ).toBe("low");
+  });
 });

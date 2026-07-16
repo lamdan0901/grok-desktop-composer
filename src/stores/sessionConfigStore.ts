@@ -8,6 +8,7 @@ import {
 } from "@/lib/sessionConfig";
 import type { SessionId } from "@/lib/types";
 import {
+  currentReasoningEffort,
   parseReasoningEfforts,
   type EffortOption,
   type SessionModelState,
@@ -24,6 +25,9 @@ interface SessionConfigState {
   setConfigOptions: (sessionId: SessionId, options: SessionConfigOption[]) => void;
   setSessionModels: (sessionId: SessionId, models: SessionModelState) => void;
   setCurrentModel: (sessionId: SessionId, modelId: string) => void;
+  setCurrentEffort: (sessionId: SessionId, effort: string) => void;
+  getCurrentEffort: (sessionId: SessionId | null) => string | undefined;
+  getCurrentModelId: (sessionId: SessionId | null) => string | undefined;
   getEffortOptions: (sessionId: SessionId | null) => EffortOption[];
   clearSession: (sessionId: SessionId) => void;
   loadCliModels: () => Promise<void>;
@@ -61,6 +65,40 @@ export const useSessionConfigStore = create<SessionConfigState>((set, get) => ({
           }
         : s;
     }),
+
+  setCurrentEffort: (sessionId, effort) =>
+    set((s) => {
+      const models = s.modelsBySession[sessionId];
+      if (!models) return s;
+      return {
+        modelsBySession: {
+          ...s.modelsBySession,
+          [sessionId]: {
+            ...models,
+            availableModels: models.availableModels.map((model) =>
+              model.modelId === models.currentModelId
+                ? {
+                    ...model,
+                    meta: { ...(model.meta ?? {}), reasoningEffort: effort },
+                  }
+                : model,
+            ),
+          },
+        },
+      };
+    }),
+
+  getCurrentEffort: (sessionId) => {
+    if (!sessionId) return undefined;
+    const models = get().modelsBySession[sessionId];
+    const selected = models?.availableModels.find(
+      (model) => model.modelId === models.currentModelId,
+    );
+    return currentReasoningEffort(selected?.meta);
+  },
+
+  getCurrentModelId: (sessionId) =>
+    sessionId ? get().modelsBySession[sessionId]?.currentModelId : undefined,
 
   getEffortOptions: (sessionId) => {
     if (!sessionId) return [];

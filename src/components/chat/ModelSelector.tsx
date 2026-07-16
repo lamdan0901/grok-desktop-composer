@@ -5,6 +5,7 @@ import {
   getSessionCwd,
   useWorkspaceStore,
 } from "@/stores/workspaceStore";
+import { EffortSelector } from "./EffortSelector";
 import { ModelSelectorDropdown } from "./ModelSelectorDropdown";
 
 export function ModelSelector() {
@@ -14,12 +15,21 @@ export function ModelSelector() {
   const session = sessions.find((s) => s.id === activeSessionId);
   const cwd = getSessionCwd(session, projects);
   const cliModelsLoaded = useSessionConfigStore((s) => s.cliModelsLoaded);
-  const { applyModelChange, changing, disabled, selector } =
-    useApplyModelChange();
+  const {
+    applyModelChange,
+    applyEffortChange,
+    changing,
+    disabled,
+    selector,
+    effortOptions,
+    currentEffort,
+  } = useApplyModelChange();
 
   const handleSelect = useCallback(
     (value: string) => {
-      void applyModelChange(value);
+      applyModelChange(value).catch((error) => {
+        console.error("Model change failed", error);
+      });
     },
     [applyModelChange],
   );
@@ -43,6 +53,17 @@ export function ModelSelector() {
         changing={changing}
         title={title}
         onSelect={handleSelect}
+      />
+      <EffortSelector
+        options={effortOptions}
+        currentValue={currentEffort}
+        disabled={disabled}
+        changing={changing}
+        onSelect={(value) => {
+          applyEffortChange(value).catch((error) => {
+            console.error("Reasoning effort change failed", error);
+          });
+        }}
       />
     </div>
   );
