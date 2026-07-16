@@ -49,6 +49,15 @@ export const XAI = {
   mcpAuthStatus: entry("x.ai/mcp/auth_status", "gui->agent", "request", "none", "snake_case"),
   mcpAuthTrigger: entry("x.ai/mcp/auth_trigger", "gui->agent", "request", "none", "snake_case"),
 
+  // ── Extensions (gui -> agent requests / agent -> gui trust request) ──
+  skillsList: entry("x.ai/skills/list", "gui->agent", "request"),
+  skillsEnable: entry("x.ai/skills/enable", "gui->agent", "request"),
+  skillsDisable: entry("x.ai/skills/disable", "gui->agent", "request"),
+  skillsRefresh: entry("x.ai/skills/refresh", "gui->agent", "request"),
+  hooksList: entry("x.ai/hooks/list", "gui->agent", "request"),
+  hooksAction: entry("x.ai/hooks/action", "gui->agent", "request", "none", "mixed"),
+  folderTrustRequest: entry("x.ai/folder_trust/request", "agent->gui", "request", "none", "mixed"),
+
   // ── MCP status notifications (agent -> gui) ────────────────────────
   mcpServersUpdated: entry("x.ai/mcp/servers_updated", "agent->gui", "notification"),
   mcpServerStatus: entry("x.ai/mcp/server_status", "agent->gui", "notification"),
