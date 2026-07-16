@@ -86,6 +86,20 @@ export const XAI = {
     "request",
   ),
 
+  // ── Prompt queue / interject ──────────────────────────────────────
+  queueChanged: entry(
+    "x.ai/queue/changed",
+    "agent->gui",
+    "notification",
+    "none",
+    "mixed",
+  ),
+  queueRemove: entry("x.ai/queue/remove", "gui->agent", "notification"),
+  queueReorder: entry("x.ai/queue/reorder", "gui->agent", "notification"),
+  queueClear: entry("x.ai/queue/clear", "gui->agent", "notification"),
+  queueInterject: entry("x.ai/queue/interject", "gui->agent", "notification"),
+  interject: entry("x.ai/interject", "gui->agent", "request"),
+
   // ── Task / scheduler / monitor notifications (agent -> gui) ────────
   // Scheduled-task events replay on session/load so the pane is reconstructed.
   taskBackgrounded: entry("x.ai/task_backgrounded", "agent->gui", "notification", "none", "snake_case"),

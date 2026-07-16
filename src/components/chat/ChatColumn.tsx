@@ -13,6 +13,7 @@ import { MessageList } from "./MessageList";
 import { TodoPanel } from "./TodoPanel";
 import { TasksPane } from "./TasksPane";
 import { RewindPanel } from "./RewindPanel";
+import { PromptQueuePanel } from "./PromptQueuePanel";
 import { selectSessionTodos, useTodoStore } from "@/stores/todoStore";
 import { displayThreadTitle } from "@/lib/threadTitle";
 import { useExternallyActiveSession } from "@/hooks/useExternallyActiveSession";
@@ -108,6 +109,7 @@ export function ChatColumn() {
       <div className="chat-column__tasks">
         <TasksPane />
         <RewindPanel key={activeSessionId} />
+        <PromptQueuePanel />
       </div>
       <div className="chat-column__scroll" ref={scrollRef}>
         {hasMessages ? (

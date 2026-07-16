@@ -32,6 +32,7 @@ import { usePlanReviewStore } from "@/stores/planReviewStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useMcpStore } from "@/stores/mcpStore";
 import { useRewindStore } from "@/stores/rewindStore";
+import { useQueueStore } from "@/stores/queueStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
 import { isBenignAttachError } from "@/lib/acpErrors";
 import {
@@ -492,6 +493,7 @@ export class TabAcpSession {
     useTaskStore.getState().clearTab(this.tabId);
     useMcpStore.getState().clearTab(this.tabId);
     useRewindStore.getState().clearSession(this.tabId);
+    useQueueStore.getState().clearSession(this.tabId);
     cancelHistoryReplay(this.tabId);
   }
 

@@ -29,6 +29,7 @@ import {
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
 import { CONTEXT_COMPACT_THRESHOLD_PCT } from "@/lib/usage";
+import { interjectActiveTurn } from "@/lib/acp/xaiQueue";
 import {
   getSessionCwd,
   useWorkspaceStore,
@@ -37,6 +38,8 @@ import {
 export function Composer() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [interjectText, setInterjectText] = useState("");
+  const [interjectSupported, setInterjectSupported] = useState(true);
   const slashAnchorRef = useRef<HTMLDivElement>(null);
   const { handleAccessModeKeyDown } = useComposerAccessModeCycle();
   const { handleModelKeyDown } = useComposerModelCycle();
@@ -182,6 +185,23 @@ export function Composer() {
     setSending(false);
   };
 
+  const handleInterject = async () => {
+    const next = interjectText.trim();
+    if (!session || !next) return;
+    try {
+      if (!(await interjectActiveTurn(session.id, next))) {
+        setInterjectSupported(false);
+        return;
+      }
+      setInterjectText("");
+    } catch (error) {
+      appendError(
+        session.id,
+        error instanceof Error ? error.message : "Failed to interject active turn",
+      );
+    }
+  };
+
   if (shouldShowHomeComposer(activeSessionId, session)) return null;
 
   const placeholder = !session
@@ -214,6 +234,24 @@ export function Composer() {
           >
             Compact
           </button>
+          {isGenerating && interjectSupported && (
+            <>
+              <input
+                type="text"
+                aria-label="Active turn interjection"
+                value={interjectText}
+                onChange={(event) => setInterjectText(event.target.value)}
+              />
+              <button
+                type="button"
+                aria-label="Interject active turn"
+                disabled={!interjectText.trim()}
+                onClick={handleInterject}
+              >
+                Interject
+              </button>
+            </>
+          )}
         </div>
         <UsageBar />
       </div>
