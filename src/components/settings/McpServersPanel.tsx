@@ -29,6 +29,8 @@ const EMPTY_FORM: FormState = {
   editing: false,
 };
 
+const EMPTY_SERVERS: McpServerEntry[] = [];
+
 function toConfig(form: FormState): McpServerConfigInput | null {
   if (form.type === "http") {
     if (!form.url.trim()) return null;
@@ -44,7 +46,7 @@ function toConfig(form: FormState): McpServerConfigInput | null {
 
 export function McpServersPanel() {
   const tabId = useWorkspaceStore((s) => s.activeSessionId);
-  const servers = useMcpStore((s) => (tabId ? s.getServers(tabId) : []));
+  const servers = useMcpStore((s) => (tabId ? s.getServers(tabId) : EMPTY_SERVERS));
   const [error, setError] = useState<string | null>(null);
   const [supported, setSupported] = useState<boolean | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -114,7 +116,11 @@ export function McpServersPanel() {
 
   if (supported === false) return null;
   if (!tabId) {
-    return <p className="mcp-panel__empty">Open a thread to manage its MCP servers.</p>;
+    return (
+      <section className="mcp-panel" aria-label="MCP servers">
+        <p className="mcp-panel__empty">Open a thread to manage its MCP servers.</p>
+      </section>
+    );
   }
 
   return (

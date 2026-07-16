@@ -18,6 +18,7 @@ import {
   Trash2,
   FolderPlus,
   Pencil,
+  Puzzle,
 } from "lucide-react";
 import { useSidebarResize } from "@/hooks/useSidebarResize";
 import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "@/lib/sidebarLayout";
@@ -49,6 +50,7 @@ import {
 } from "@/lib/sidebarProjectState";
 import { displayThreadTitle } from "@/lib/threadTitle";
 import type { Project, Session } from "@/lib/types";
+import { useExtensionsStore } from "@/stores/extensionsStore";
 
 function recordProjectPath(cwd: string) {
   const { settings, updateSettings } = useSettingsStore.getState();
@@ -317,6 +319,7 @@ function SidebarBottomActions({
   onToggleSidebar: () => void;
 }) {
   const setSettingsOpen = useSettingsStore((s) => s.setSettingsOpen);
+  const openExtensions = useExtensionsStore((s) => s.openModal);
 
   const settingsBtn = (
     <button
@@ -327,6 +330,18 @@ function SidebarBottomActions({
       onClick={() => setSettingsOpen(true)}
     >
       <Settings size={18} />
+    </button>
+  );
+
+  const extensionsBtn = (
+    <button
+      type="button"
+      className="codex-icon-btn"
+      aria-label="Extensions"
+      title="Extensions"
+      onClick={() => openExtensions()}
+    >
+      <Puzzle size={18} />
     </button>
   );
 
@@ -349,11 +364,13 @@ function SidebarBottomActions({
       {collapsed ? (
         <>
           {settingsBtn}
+          {extensionsBtn}
           {toggleBtn}
         </>
       ) : (
         <>
           {toggleBtn}
+          {extensionsBtn}
           {settingsBtn}
         </>
       )}

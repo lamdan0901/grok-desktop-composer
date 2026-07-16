@@ -9,6 +9,8 @@ import { PlanOverlay } from "@/components/chat/PlanOverlay";
 import { AskQuestionOverlay } from "@/components/chat/AskQuestionOverlay";
 import { UsageOverlay } from "@/components/chat/UsageOverlay";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
+import { ExtensionsModal } from "@/components/extensions/ExtensionsModal";
+import { FolderTrustPrompt } from "@/components/extensions/FolderTrustPrompt";
 import { usePlanWatcher } from "@/hooks/usePlanWatcher";
 import { useSessionTitleWatcher } from "@/hooks/useSessionTitleWatcher";
 import { useActiveSessionsWatcher } from "@/hooks/useActiveSessionsWatcher";
@@ -51,6 +53,8 @@ export function AppShell() {
       </div>
       {import.meta.env.DEV && <AcpDebugPanel />}
       <SettingsPanel />
+      <ExtensionsModal />
+      <FolderTrustPrompt />
     </div>
   );
 }

@@ -3817,3 +3817,124 @@ button {
 .session-history__actions {
   flex: 0 0 auto;
 }
+
+.extensions-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.extensions-modal {
+  width: min(760px, 100vw);
+  height: 100%;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.extensions-modal__header,
+.extensions-modal__tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+}
+
+.extensions-modal__header {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.extensions-modal__header h2 {
+  margin: 0;
+}
+
+.extensions-modal__tabs {
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.extensions-modal__tabs button[aria-selected="true"] {
+  color: var(--accent);
+}
+
+.extensions-modal__body {
+  flex: 1;
+  overflow: auto;
+  padding: 18px;
+}
+
+.extensions-panel__actions,
+.extensions-list__item,
+.folder-trust-prompt__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extensions-panel__actions {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.extensions-list {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.extensions-list__item {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.extensions-list__item > div {
+  flex: 1 1 100%;
+}
+
+.extensions-list__item p,
+.extensions-list__item small {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+}
+
+.extensions-empty,
+.extensions-error {
+  color: var(--text-secondary);
+}
+
+.extensions-error {
+  color: var(--danger);
+}
+
+.folder-trust-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.folder-trust-prompt {
+  width: min(440px, calc(100vw - 32px));
+  padding: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.folder-trust-prompt__actions {
+  justify-content: flex-end;
+  margin-top: 18px;
+}
