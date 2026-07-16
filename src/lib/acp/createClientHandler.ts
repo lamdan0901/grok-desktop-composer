@@ -12,6 +12,7 @@ import { isPlanPermissionRequest } from "@/lib/plan";
 import { pickAutoApproveOption } from "@/lib/permission";
 import { GROK_EXTENSION_NOTIFY_METHODS } from "@/lib/sessionUpdateDedupe";
 import { applySessionNotification } from "./sessionUpdates";
+import { handleReverseExtMethod } from "./reverseExtMethod";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -27,6 +28,14 @@ export function createClientHandler(sessionId: SessionId): Client {
     async extNotification(method, params) {
       if (!GROK_EXTENSION_NOTIFY_METHODS.has(method)) return;
       applySessionNotification(sessionId, params, method);
+    },
+
+    async extMethod(method, params) {
+      return (await handleReverseExtMethod(
+        sessionId,
+        method,
+        params,
+      )) as Record<string, unknown>;
     },
 
     async requestPermission(

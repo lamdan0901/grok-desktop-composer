@@ -3,6 +3,7 @@ import { X, ClipboardList } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 import { approvePlan, revisePlan } from "@/lib/plan";
 import { usePlanStore } from "@/stores/planStore";
+import { usePlanReviewStore } from "@/stores/planReviewStore";
 import {
   getSessionCwd,
   useWorkspaceStore,
@@ -21,11 +22,25 @@ export function PlanOverlay() {
   const plan = usePlanStore((s) =>
     activeSessionId != null ? s.bySession[activeSessionId] : undefined,
   );
+  const reverseReview = usePlanReviewStore((s) =>
+    activeSessionId != null ? s.pendingBySession[activeSessionId] : undefined,
+  );
+  const resolveReview = usePlanReviewStore((s) => s.resolve);
+  const setSessionStatus = useWorkspaceStore((s) => s.setSessionStatus);
 
   const visible = session?.status === "plan_review";
 
   const handleApprove = useCallback(async () => {
-    if (!session || !cwd || acting) return;
+    if (!session || acting) return;
+    // Reverse exit_plan_mode request: resolve it directly instead of the
+    // permission-option path.
+    if (reverseReview && activeSessionId) {
+      resolveReview(activeSessionId, { outcome: "approved" });
+      setSessionStatus(activeSessionId, "running");
+      setFeedback("");
+      return;
+    }
+    if (!cwd) return;
     setActing(true);
     try {
       await approvePlan(session.id, cwd);
@@ -33,10 +48,28 @@ export function PlanOverlay() {
     } finally {
       setActing(false);
     }
-  }, [session, cwd, acting]);
+  }, [
+    session,
+    cwd,
+    acting,
+    reverseReview,
+    activeSessionId,
+    resolveReview,
+    setSessionStatus,
+  ]);
 
   const handleRevise = useCallback(async () => {
-    if (!session || !cwd || acting) return;
+    if (!session || acting) return;
+    if (reverseReview && activeSessionId) {
+      resolveReview(activeSessionId, {
+        outcome: "cancelled",
+        feedback: feedback.trim() || undefined,
+      });
+      setSessionStatus(activeSessionId, "running");
+      setFeedback("");
+      return;
+    }
+    if (!cwd) return;
     setActing(true);
     try {
       await revisePlan(session.id, cwd, feedback);
@@ -44,7 +77,16 @@ export function PlanOverlay() {
     } finally {
       setActing(false);
     }
-  }, [session, cwd, feedback, acting]);
+  }, [
+    session,
+    cwd,
+    feedback,
+    acting,
+    reverseReview,
+    activeSessionId,
+    resolveReview,
+    setSessionStatus,
+  ]);
 
   if (!visible || !session) return null;
 

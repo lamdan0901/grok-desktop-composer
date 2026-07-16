@@ -27,6 +27,8 @@ import { resolveGrokSessionCwd } from "@/lib/sessions";
 import { clearSlashCommandsInflight } from "@/lib/loadSlashCommands";
 import { useSlashCommandsStore } from "@/stores/slashCommandsStore";
 import { useSessionConfigStore } from "@/stores/sessionConfigStore";
+import { useQuestionStore } from "@/stores/questionStore";
+import { usePlanReviewStore } from "@/stores/planReviewStore";
 import { clearSessionNotificationDedupe } from "@/lib/sessionUpdateDedupe";
 import { isBenignAttachError } from "@/lib/acpErrors";
 import {
@@ -466,6 +468,10 @@ export class TabAcpSession {
   async dispose(): Promise<void> {
     clearTabLineHandlers(this.tabId);
     clearSessionNotificationDedupe(this.tabId);
+    // Settle any pending reverse requests so they do not leak or leave a stale
+    // overlay for a reconnecting session.
+    useQuestionStore.getState().cancelSession(this.tabId);
+    usePlanReviewStore.getState().cancelSession(this.tabId);
     await this.teardownAgentProcess();
     this.state = "idle";
     this.sessionId = null;
