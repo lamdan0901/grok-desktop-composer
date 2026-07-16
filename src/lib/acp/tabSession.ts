@@ -374,6 +374,38 @@ export class TabAcpSession {
     this.applyConfigOptions(res.configOptions);
   }
 
+  /** Send an agent-directed `x.ai/*` (or other) extension request, verbatim on the wire. */
+  async extMethod(method: string, params: unknown): Promise<unknown> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("ACP session not ready");
+    }
+    return this.connection.extMethod(method, params as Record<string, unknown>);
+  }
+
+  /** Send an agent-directed extension notification, verbatim on the wire. */
+  async extNotification(method: string, params: unknown): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("ACP session not ready");
+    }
+    await this.connection.extNotification(method, params as Record<string, unknown>);
+  }
+
+  /**
+   * Switch model via `session/set_model`; effort rides `_meta.reasoningEffort`.
+   * SDK 0.24 has no typed `setSessionModel`, so this rides `extMethod`, which
+   * sends the method name verbatim over JSON-RPC (grok's expected wire method).
+   */
+  async setModel(modelId: string, effort?: string): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("ACP session not ready");
+    }
+    await this.connection.extMethod("session/set_model", {
+      sessionId: this.sessionId,
+      modelId,
+      ...(effort ? { _meta: { reasoningEffort: effort } } : {}),
+    });
+  }
+
   private applyConfigOptions(
     options: SessionConfigOption[] | null | undefined,
   ): void {
