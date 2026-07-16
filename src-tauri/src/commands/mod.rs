@@ -2,6 +2,7 @@ pub mod active_sessions;
 pub mod fs;
 pub mod auth;
 pub mod cli;
+pub mod extensions;
 pub mod models;
 pub mod plan;
 pub mod sessions;

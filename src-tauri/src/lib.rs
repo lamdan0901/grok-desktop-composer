@@ -7,6 +7,7 @@ use commands::active_sessions::{
 use commands::fs::{read_text_file, write_text_file};
 use commands::auth::{check_auth, run_grok_login, run_grok_logout};
 use commands::cli::{check_cli_ready, grok_version};
+use commands::extensions::{list_grok_skills, read_grok_skill};
 use commands::models::list_grok_models;
 use commands::plan::{
     grok_sessions_root, read_plan_file, resolve_plan_path, unwatch_plan_file, watch_plan_file,
@@ -84,6 +85,8 @@ pub fn run() {
             start_active_sessions_watch,
             read_text_file,
             write_text_file,
+            list_grok_skills,
+            read_grok_skill,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
