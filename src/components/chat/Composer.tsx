@@ -28,6 +28,7 @@ import {
 } from "@/lib/composerAttachments";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
+import { CONTEXT_COMPACT_THRESHOLD_PCT } from "@/lib/usage";
 import {
   getSessionCwd,
   useWorkspaceStore,
@@ -89,10 +90,19 @@ export function Composer() {
     setText,
   });
 
-  const handleSend = useCallback(async () => {
-    if (!canSend || blocked || sending || !session || !cwd) return;
+  const handleSend = useCallback(async (overrideText?: string) => {
+    const nextText = overrideText ?? text;
+    if (
+      !canSendComposer(nextText, attachments.length) ||
+      blocked ||
+      sending ||
+      !session ||
+      !cwd
+    ) {
+      return;
+    }
 
-    const trimmed = text.trim();
+    const trimmed = nextText.trim();
     const slashResult = executeSlashCommand(trimmed);
     if (slashResult.handled) {
       if (!slashResult.forwardText) {
@@ -192,6 +202,18 @@ export function Composer() {
         <div className="composer__toolbar-left">
           <AccessModePill variant="session" />
           <ModelSelector />
+          <button
+            type="button"
+            className="composer__compact-btn"
+            aria-label="Compact conversation"
+            title={`Compact conversation (auto-compacts at ${CONTEXT_COMPACT_THRESHOLD_PCT}%)`}
+            disabled={blocked || sending}
+            onClick={async () => {
+              await handleSend("/compact");
+            }}
+          >
+            Compact
+          </button>
         </div>
         <UsageBar />
       </div>
