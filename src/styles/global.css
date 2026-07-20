@@ -1608,6 +1608,15 @@ button {
   color: var(--text-muted);
 }
 
+.chat-column__mcp-status {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 .chat-column__status--error {
   color: var(--danger);
 }

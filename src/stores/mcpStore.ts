@@ -14,6 +14,16 @@ export interface McpInitializationState {
   failures: Record<string, McpInitializationFailure>;
 }
 
+export function formatMcpInitialization(state: McpInitializationState): string {
+  if (state.phase === "running") {
+    return `Starting MCP servers ${state.connected}/${state.total}…`;
+  }
+  const failures = Object.entries(state.failures)
+    .map(([name, status]) => `${name} ${status === "needsauth" ? "needs authentication" : "unavailable"}`)
+    .join(", ");
+  return `MCP ready: ${state.connected}/${state.total}${failures ? ` · ${failures}` : ""}`;
+}
+
 export interface McpToolEntry {
   name: string;
   displayName?: string;

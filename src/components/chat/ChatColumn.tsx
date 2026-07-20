@@ -14,6 +14,7 @@ import { TodoPanel } from "./TodoPanel";
 import { TasksPane } from "./TasksPane";
 import { RewindPanel } from "./RewindPanel";
 import { PromptQueuePanel } from "./PromptQueuePanel";
+import { McpInitStatus } from "./McpInitStatus";
 import { selectSessionTodos, useTodoStore } from "@/stores/todoStore";
 import { displayThreadTitle } from "@/lib/threadTitle";
 import { useExternallyActiveSession } from "@/hooks/useExternallyActiveSession";
@@ -111,6 +112,7 @@ export function ChatColumn() {
         <RewindPanel key={activeSessionId} />
         <PromptQueuePanel />
       </div>
+      <McpInitStatus tabId={activeSessionId} />
       <div className="chat-column__scroll" ref={scrollRef}>
         {hasMessages ? (
           <MessageList
