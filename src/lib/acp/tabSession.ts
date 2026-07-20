@@ -50,6 +50,9 @@ import { createTauriAcpStream } from "./tauriStream";
 
 type SessionState = "idle" | "connecting" | "ready" | "error";
 
+const IMAGE_READ_FAILURE_INSTRUCTION =
+  "If reading an image file fails, treat that as normal and inspect the image already included in the prompt.";
+
 export class TabAcpSession {
   private connection: ClientSideConnection | null = null;
   private sessionId: string | null = null;
@@ -434,13 +437,17 @@ export class TabAcpSession {
     if (!this.connection || !this.sessionId) {
       throw new Error("ACP session not ready");
     }
-    const prompt =
+    const userPrompt =
       promptBlocks?.length
         ? promptBlocks
         : text.trim()
           ? [{ type: "text" as const, text: text.trim() }]
           : [];
-    if (!prompt.length) return;
+    if (!userPrompt.length) return;
+    const prompt: ContentBlock[] = [
+      { type: "text", text: IMAGE_READ_FAILURE_INSTRUCTION },
+      ...userPrompt,
+    ];
 
     this.promptInFlight = true;
     startTitleRefreshWhileTurn(this.tabId);

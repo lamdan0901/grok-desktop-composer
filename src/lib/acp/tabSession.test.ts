@@ -5,6 +5,15 @@ import { useHookStore } from "@/stores/hookStore";
 import { useFolderTrustStore } from "@/stores/folderTrustStore";
 
 vi.mock("@/lib/grok", () => ({ startTab: vi.fn(), stopTab: vi.fn() }));
+vi.mock("@/lib/syncGrokSessionTitle", () => ({
+  refreshTitleAfterTurn: vi.fn(),
+  startTitleRefreshWhileTurn: vi.fn(),
+  stopTitleRefreshWhileTurn: vi.fn(),
+}));
+vi.mock("@/lib/syncGrokSessionUsage", () => ({
+  refreshUsageAfterTurn: vi.fn(),
+}));
+vi.mock("./xaiRewind", () => ({ listRewindPoints: vi.fn().mockResolvedValue([]) }));
 
 describe("TabAcpSession extension lifecycle", () => {
   beforeEach(() => {
@@ -20,5 +29,34 @@ describe("TabAcpSession extension lifecycle", () => {
     await removeTabSession("tab-1");
     expect(useSkillStore.getState().skillsByTab["tab-1"]).toBeUndefined();
     expect(useHookStore.getState().hooksByTab["tab-1"]).toBeUndefined();
+  });
+
+  it("prepends image-read guidance to every prompt", async () => {
+    const prompt = vi.fn().mockResolvedValue({ stopReason: "end_turn" });
+    const session = getTabSession("tab-prompt");
+    Object.assign(session, {
+      connection: { prompt },
+      sessionId: "grok-1",
+      boundCwd: "C:\\repo",
+      state: "ready",
+      agentAttached: true,
+    });
+
+    await session.sendPrompt("Inspect it", [
+      { type: "text", text: "Inspect it" },
+      { type: "image", mimeType: "image/png", data: "AAEC" },
+    ]);
+
+    expect(prompt).toHaveBeenCalledWith({
+      sessionId: "grok-1",
+      prompt: [
+        {
+          type: "text",
+          text: "If reading an image file fails, treat that as normal and inspect the image already included in the prompt.",
+        },
+        { type: "text", text: "Inspect it" },
+        { type: "image", mimeType: "image/png", data: "AAEC" },
+      ],
+    });
   });
 });
