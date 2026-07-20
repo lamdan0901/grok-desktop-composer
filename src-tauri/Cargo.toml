@@ -21,6 +21,7 @@ tauri-plugin-dialog = "2"
 notify = "8"
 urlencoding = "2"
 base64 = "0.22"
+tauri-plugin-notification = "2"
 
 [profile.release]
 codegen-units = 1
