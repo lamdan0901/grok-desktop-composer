@@ -1452,6 +1452,40 @@ button {
   color: var(--text-primary);
 }
 
+.rewind-panel {
+  margin: 8px 20px;
+}
+
+.rewind-panel--expanded {
+  margin-right: 20px;
+  margin-left: 20px;
+}
+
+.rewind-panel__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rewind-panel__trigger:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.rewind-panel__badge {
+  color: var(--text-muted);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .chat-column__scroll {
   flex: 1;
   min-height: 0;

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as acp from "@/lib/acp";
 import { clearFeatureCache } from "@/lib/acp/featureDetection";
+import { useRewindStore } from "@/stores/rewindStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { RewindPanel } from "./RewindPanel";
 
@@ -10,6 +11,11 @@ describe("RewindPanel", () => {
   beforeEach(() => {
     clearFeatureCache("tab-1");
     useWorkspaceStore.setState({ activeSessionId: "tab-1" } as never);
+    useRewindStore.setState({
+      pointsBySession: {},
+      loadingBySession: {},
+      errorBySession: {},
+    });
   });
 
   afterEach(() => {
@@ -18,18 +24,55 @@ describe("RewindPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders no restore UI when rewind is unsupported", async () => {
+  it("hides rewind when the request is unsupported", async () => {
+    const extMethod = vi.fn().mockRejectedValue({ code: -32601 });
     vi.spyOn(acp, "getTabSession").mockReturnValue({
       grokSessionId: "grok-1",
-      extMethod: vi.fn().mockRejectedValue({ code: -32601 }),
+      extMethod,
     } as unknown as acp.TabAcpSession);
 
     render(<RewindPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Rewind files" }));
+
+    await waitFor(() => expect(extMethod).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: "Rewind files" })).toBeNull();
+  });
+
+  it("hides rewind when the current thread has no points", async () => {
+    const extMethod = vi.fn().mockResolvedValue({ points: [] });
+    vi.spyOn(acp, "getTabSession").mockReturnValue({
+      grokSessionId: "grok-1",
+      extMethod,
+    } as unknown as acp.TabAcpSession);
+
+    render(<RewindPanel />);
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /restore/i })).toBeNull(),
+      expect(extMethod).toHaveBeenCalledWith("x.ai/rewind/points", {
+        sessionId: "grok-1",
+      }),
     );
+    expect(screen.queryByRole("button", { name: "Rewind files" })).toBeNull();
+  });
+
+  it("shows an aligned trigger and Todo-style content when points exist", async () => {
+    const extMethod = vi.fn().mockResolvedValue({
+      points: [{ id: "p1", label: "Before edit", fileCount: 2 }],
+    });
+    vi.spyOn(acp, "getTabSession").mockReturnValue({
+      grokSessionId: "grok-1",
+      extMethod,
+    } as unknown as acp.TabAcpSession);
+
+    render(<RewindPanel />);
+
+    const button = await screen.findByRole("button", { name: "Rewind files" });
+    expect(button.className).toContain("rewind-panel__trigger");
+    expect(button.textContent).toContain("1");
+
+    fireEvent.click(button);
+
+    expect(button.className).toContain("todo-panel__toggle");
+    expect(screen.getByText("Before edit · 2 files")).toBeTruthy();
   });
 
   it("confirms restore and calls rewind execute once", async () => {
@@ -45,7 +88,7 @@ describe("RewindPanel", () => {
     vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
 
     render(<RewindPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Rewind files" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Rewind files" }));
     fireEvent.click(await screen.findByRole("button", { name: "Restore Before edit" }));
 
     await waitFor(() =>
@@ -71,7 +114,7 @@ describe("RewindPanel", () => {
     vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
 
     render(<RewindPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Rewind files" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Rewind files" }));
     fireEvent.click(await screen.findByRole("button", { name: "Restore Before edit" }));
 
     expect(await screen.findByText("Restore failed")).toBeTruthy();

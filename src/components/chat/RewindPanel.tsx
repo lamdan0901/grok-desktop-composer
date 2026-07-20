@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { executeRewind, listRewindPoints } from "@/lib/acp/xaiRewind";
 import { useRewindStore } from "@/stores/rewindStore";
@@ -21,17 +21,17 @@ export function RewindPanel() {
   const [expanded, setExpanded] = useState(false);
   const [supported, setSupported] = useState<boolean | null>(null);
 
-  if (!tabId || supported === false) return null;
+  useEffect(() => {
+    if (!tabId) return;
+    listRewindPoints(tabId)
+      .then((result) => setSupported(result !== null))
+      .catch(() => setSupported(true));
+  }, [tabId]);
 
-  const handleToggle = async () => {
-    const nextExpanded = !expanded;
-    setExpanded(nextExpanded);
-    if (!nextExpanded) return;
-    try {
-      setSupported((await listRewindPoints(tabId)) !== null);
-    } catch {
-      setSupported(true);
-    }
+  if (!tabId || supported === false || points.length === 0) return null;
+
+  const handleToggle = () => {
+    setExpanded((value) => !value);
   };
 
   const handleRestore = async (pointId: string) => {
@@ -55,30 +55,37 @@ export function RewindPanel() {
   };
 
   return (
-    <section className="tasks-pane" aria-label="Rewind points">
+    <section
+      className={expanded ? "todo-panel rewind-panel--expanded" : "rewind-panel"}
+      aria-label="Rewind points"
+    >
       <button
         type="button"
-        className="tasks-pane__toggle"
+        className={expanded ? "todo-panel__toggle" : "rewind-panel__trigger"}
         onClick={handleToggle}
         aria-expanded={expanded}
         aria-label="Rewind files"
       >
         {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <History size={14} aria-hidden />
-        <span className="tasks-pane__title">Rewind</span>
-        {points.length > 0 && <span className="tasks-pane__badge">{points.length}</span>}
+        <History
+          size={14}
+          className={expanded ? "todo-panel__header-icon" : undefined}
+          aria-hidden
+        />
+        <span className={expanded ? "todo-panel__title" : undefined}>Rewind</span>
+        <span className={expanded ? "todo-panel__badge" : "rewind-panel__badge"}>
+          {points.length}
+        </span>
       </button>
       {expanded && (
-        <div className="tasks-pane__list">
+        <div className="todo-panel__list">
           {error && <p className="tasks-pane__error">{error}</p>}
           {loading ? (
             <p>Loading rewind points…</p>
-          ) : points.length === 0 ? (
-            <p>No rewind points.</p>
           ) : (
             points.map((point) => (
-              <div key={point.id} className="tasks-pane__item">
-                <span className="tasks-pane__cmd">
+              <div key={point.id} className="todo-panel__item">
+                <span className="todo-panel__text">
                   {point.label}
                   {point.fileCount != null ? ` · ${point.fileCount} files` : ""}
                 </span>
