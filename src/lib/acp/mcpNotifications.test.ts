@@ -3,10 +3,10 @@ import { routeMcpNotification } from "./mcpNotifications";
 import { useMcpStore } from "@/stores/mcpStore";
 
 describe("routeMcpNotification", () => {
-  beforeEach(() => useMcpStore.setState({ serversByTab: {} }));
+  beforeEach(() => useMcpStore.setState({ serversByTab: {}, initializationByTab: {} }));
 
   it("replaces the catalog on servers_updated", () => {
-    const consumed = routeMcpNotification("tabA", "x.ai/mcp/servers_updated", {
+    const consumed = routeMcpNotification("tabA", "_x.ai/mcp/servers_updated", {
       mcpServers: [{ name: "s1", source: "local", type: "stdio", command: "x" }],
     });
     expect(consumed).toBe(true);
@@ -23,8 +23,39 @@ describe("routeMcpNotification", () => {
         session: { enabled: true, status: "ready", tools: [], authRequired: false },
       },
     ]);
-    routeMcpNotification("tabA", "x.ai/mcp/server_status", { name: "s1", status: "unavailable" });
+    routeMcpNotification("tabA", "_x.ai/mcp/server_status", { name: "s1", status: "unavailable" });
     expect(useMcpStore.getState().getServers("tabA")[0].session?.status).toBe("unavailable");
+  });
+
+  it("routes live Grok initialization notifications", () => {
+    expect(
+      routeMcpNotification("tabA", "_x.ai/mcp/init_progress", {
+        total: 3,
+        connected: 1,
+      }),
+    ).toBe(true);
+    routeMcpNotification("tabA", "_x.ai/mcp/server_status", {
+      name: "atlassian",
+      status: "needsauth",
+    });
+    routeMcpNotification("tabA", "_x.ai/mcp_initialized", {});
+
+    expect(useMcpStore.getState().getInitialization("tabA")).toEqual({
+      phase: "complete",
+      total: 3,
+      connected: 1,
+      failures: { atlassian: "needsauth" },
+    });
+  });
+
+  it("ignores malformed initialization progress", () => {
+    expect(
+      routeMcpNotification("tabA", "_x.ai/mcp/init_progress", {
+        total: "3",
+        connected: 1,
+      }),
+    ).toBe(true);
+    expect(useMcpStore.getState().getInitialization("tabA")).toBeUndefined();
   });
 
   it("returns false for a non-MCP method", () => {

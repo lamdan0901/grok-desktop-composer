@@ -152,6 +152,7 @@ export class TabAcpSession {
   private async connect(cwd: string): Promise<void> {
     this.state = "connecting";
     await this.teardownAgentProcess();
+    useMcpStore.getState().clearInitialization(this.tabId);
     await startTab(this.tabId, cwd);
 
     const stream = createTauriAcpStream(this.tabId);

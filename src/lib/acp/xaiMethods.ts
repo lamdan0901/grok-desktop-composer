@@ -59,10 +59,11 @@ export const XAI = {
   folderTrustRequest: entry("x.ai/folder_trust/request", "agent->gui", "request", "none", "mixed"),
 
   // ── MCP status notifications (agent -> gui) ────────────────────────
-  mcpServersUpdated: entry("x.ai/mcp/servers_updated", "agent->gui", "notification"),
-  mcpServerStatus: entry("x.ai/mcp/server_status", "agent->gui", "notification"),
-  mcpToolsChanged: entry("x.ai/mcp/tools_changed", "agent->gui", "notification"),
-  mcpInitProgress: entry("x.ai/mcp/init_progress", "agent->gui", "notification"),
+  mcpServersUpdated: entry("_x.ai/mcp/servers_updated", "agent->gui", "notification"),
+  mcpServerStatus: entry("_x.ai/mcp/server_status", "agent->gui", "notification"),
+  mcpToolsChanged: entry("_x.ai/mcp/tools_changed", "agent->gui", "notification"),
+  mcpInitProgress: entry("_x.ai/mcp/init_progress", "agent->gui", "notification"),
+  mcpInitialized: entry("_x.ai/mcp_initialized", "agent->gui", "notification"),
 
   // ── Subagent (gui -> agent requests) ───────────────────────────────
   subagentGet: entry("x.ai/subagent/get", "gui->agent", "request"),

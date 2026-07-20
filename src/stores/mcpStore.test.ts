@@ -11,7 +11,7 @@ const server = {
 };
 
 describe("mcpStore (read-cache)", () => {
-  beforeEach(() => useMcpStore.setState({ serversByTab: {} }));
+  beforeEach(() => useMcpStore.setState({ serversByTab: {}, initializationByTab: {} }));
 
   it("stores servers per tab", () => {
     useMcpStore.getState().setServers("tabA", [server]);
@@ -28,5 +28,26 @@ describe("mcpStore (read-cache)", () => {
     const updated = useMcpStore.getState().getServers("tabA")[0];
     expect(updated.session?.status).toBe("unavailable");
     expect(updated.command).toBe("npx"); // config preserved
+  });
+
+  it("tracks initialization progress, failures, completion, and reset", () => {
+    useMcpStore.getState().setInitializationProgress("tabA", 4, 0);
+    useMcpStore.getState().setInitializationProgress("tabA", 4, 2);
+    useMcpStore.getState().applyInitializationServerStatus(
+      "tabA",
+      "github",
+      "unavailable",
+    );
+    useMcpStore.getState().completeInitialization("tabA");
+
+    expect(useMcpStore.getState().getInitialization("tabA")).toEqual({
+      phase: "complete",
+      total: 4,
+      connected: 2,
+      failures: { github: "unavailable" },
+    });
+
+    useMcpStore.getState().clearInitialization("tabA");
+    expect(useMcpStore.getState().getInitialization("tabA")).toBeUndefined();
   });
 });

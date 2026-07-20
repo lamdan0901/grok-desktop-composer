@@ -20,10 +20,12 @@ export function routeMcpNotification(
       markNotificationSeen(tabId, method);
       const name = params.name as string | undefined;
       if (name) {
+        const status = params.status as McpServerStatus | undefined;
         useMcpStore.getState().applyServerStatus(tabId, {
           name,
-          status: params.status as McpServerStatus | undefined,
+          status,
         });
+        useMcpStore.getState().applyInitializationServerStatus(tabId, name, status);
       }
       return true;
     }
@@ -32,9 +34,25 @@ export function routeMcpNotification(
       // Uniform "refetch" trigger — re-read the full catalog (best-effort).
       listMcpServers(tabId).catch(() => undefined);
       return true;
-    case XAI.mcpInitProgress.method:
+    case XAI.mcpInitProgress.method: {
       markNotificationSeen(tabId, method);
-      return true; // consumed; progress is advisory, no state change needed
+      const { total, connected } = params;
+      if (
+        typeof total === "number" &&
+        Number.isSafeInteger(total) &&
+        total >= 0 &&
+        typeof connected === "number" &&
+        Number.isSafeInteger(connected) &&
+        connected >= 0
+      ) {
+        useMcpStore.getState().setInitializationProgress(tabId, total, connected);
+      }
+      return true;
+    }
+    case XAI.mcpInitialized.method:
+      markNotificationSeen(tabId, method);
+      useMcpStore.getState().completeInitialization(tabId);
+      return true;
     default:
       return false;
   }
