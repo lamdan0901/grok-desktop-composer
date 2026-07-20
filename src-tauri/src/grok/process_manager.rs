@@ -35,6 +35,10 @@ pub struct ProcessManager {
     tabs: Mutex<HashMap<String, TabProcess>>,
 }
 
+fn configure_agent_command(cmd: &mut Command) {
+    cmd.env("MCP_INIT_STRATEGY", "blocking");
+}
+
 impl ProcessManager {
     pub fn new(app: AppHandle) -> Self {
         Self {
@@ -53,6 +57,7 @@ impl ProcessManager {
 
         let grok = GrokCli::resolve(settings)?;
         let mut cmd = Command::new(&grok.executable);
+        configure_agent_command(&mut cmd);
         cmd.args(grok.agent_stdio_args(settings));
 
         if let Some(ref dir) = cwd {
@@ -170,5 +175,26 @@ impl ProcessManager {
     pub fn running_tab_ids(&self) -> Result<Vec<String>, String> {
         let tabs = self.tabs.lock().map_err(|e| e.to_string())?;
         Ok(tabs.keys().cloned().collect())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::configure_agent_command;
+    use std::ffi::OsStr;
+    use std::process::Command;
+
+    #[test]
+    fn configures_blocking_mcp_initialization() {
+        let mut command = Command::new("grok");
+        configure_agent_command(&mut command);
+
+        let value = command
+            .get_envs()
+            .find(|(key, _)| *key == OsStr::new("MCP_INIT_STRATEGY"))
+            .and_then(|(_, value)| value)
+            .and_then(|value| value.to_str());
+
+        assert_eq!(value, Some("blocking"));
     }
 }
