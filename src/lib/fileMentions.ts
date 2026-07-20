@@ -64,5 +64,8 @@ export function replaceFileMention(
   context: FileMentionContext,
   path: string,
 ): string {
-  return `${text.slice(0, context.pathStart)}${path}${text.slice(context.range.end)}`;
+  const trailingSpace = path.endsWith(" ") ? " " : "";
+  const value = path.trimEnd();
+  const mention = /\s/.test(value) ? `"@${value}"` : `@${value}`;
+  return `${text.slice(0, context.range.start)}${mention}${trailingSpace}${text.slice(context.range.end)}`;
 }

@@ -78,7 +78,7 @@ export function useFileMentions({
       if (!context) return;
       const replacement = entry.isDir ? `${entry.path}/` : `${entry.path} `;
       const nextText = replaceFileMention(text, context, replacement);
-      const nextCursor = context.pathStart + replacement.length;
+      const nextCursor = nextText.length - (text.length - context.range.end);
       setText(nextText);
       setCursor(nextCursor);
     },

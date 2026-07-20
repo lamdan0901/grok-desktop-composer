@@ -36,4 +36,12 @@ describe("file mentions", () => {
       "please inspect @src/main.ts now",
     );
   });
+
+  it("quotes selected file paths containing spaces", () => {
+    const context = detectFileMention("compare @image", 14);
+    expect(context).not.toBeNull();
+    expect(replaceFileMention("compare @image", context!, "assets/my image.png ")).toBe(
+      'compare "@assets/my image.png" ',
+    );
+  });
 });
