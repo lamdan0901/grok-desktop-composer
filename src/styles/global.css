@@ -659,7 +659,7 @@ button {
 }
 
 .codex-project__row:hover .codex-project__actions {
-  opacity: 1;
+  display: flex;
 }
 
 .codex-project__main {
@@ -693,11 +693,9 @@ button {
 }
 
 .codex-project__actions {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 0;
-  opacity: 0;
-  transition: opacity 0.12s ease;
   flex-shrink: 0;
 }
 
@@ -788,14 +786,12 @@ button {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
-  opacity: 0;
+  display: none;
   color: var(--text-muted);
-  pointer-events: none;
 }
 
 .codex-thread:hover .codex-thread__delete {
-  opacity: 1;
-  pointer-events: auto;
+  display: flex;
 }
 
 .codex-thread:hover .codex-thread__time {

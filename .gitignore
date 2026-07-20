@@ -13,8 +13,6 @@ dist-ssr
 *.local
 
 # Editor
-.vscode/*
-!.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
@@ -30,3 +28,8 @@ src-tauri/target
 _cta-tmp
 
 grok-build
+docs/superpowers
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore

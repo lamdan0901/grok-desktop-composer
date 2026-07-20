@@ -17,6 +17,7 @@ import { useActiveSessionsWatcher } from "@/hooks/useActiveSessionsWatcher";
 import { useSignalsWatcher } from "@/hooks/useSignalsWatcher";
 import { useGrokSessionDiskSync } from "@/hooks/useGrokSessionDiskSync";
 import { useSessionConnections } from "@/hooks/useSessionConnections";
+import { useTaskbarProgress } from "@/hooks/useTaskbarProgress";
 import { useTabAcpBridge } from "@/hooks/useTabAcpBridge";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
@@ -30,6 +31,7 @@ export function AppShell() {
   useSessionTitleWatcher();
   useWorkspaceBootstrap();
   useWorkspacePersistence();
+  useTaskbarProgress();
 
   const activeSession = useWorkspaceStore((s) =>
     s.sessions.find((x) => x.id === s.activeSessionId),
