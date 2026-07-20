@@ -29,6 +29,7 @@ import {
 } from "@/lib/composerAttachments";
 import { buildPromptContentBlocks } from "@/lib/repositoryImages";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
+import { notifyConversationFinished } from "@/lib/conversationNotification";
 import { shouldShowHomeComposer } from "@/lib/sessionEmpty";
 import { interjectActiveTurn } from "@/lib/acp/xaiQueue";
 import {
@@ -158,6 +159,7 @@ export function Composer() {
       await ensureAcpForSend(session.id, cwd, session.grokSessionId);
       await getTabSession(session.id).sendPrompt(promptText, promptBlocks);
       finalizeAssistantStream(session.id);
+      await notifyConversationFinished(session.id);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to send message";

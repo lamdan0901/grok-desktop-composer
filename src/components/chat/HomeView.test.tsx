@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   }>,
   buildPromptContentBlocks: vi.fn(),
   sendPrompt: vi.fn(),
+  notifyConversationFinished: vi.fn(),
   clear: vi.fn(),
 }));
 
@@ -22,6 +23,9 @@ vi.mock("@/lib/acp", () => ({
 }));
 vi.mock("@/lib/ensureAcpForSend", () => ({
   ensureAcpForSend: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/conversationNotification", () => ({
+  notifyConversationFinished: mocks.notifyConversationFinished,
 }));
 vi.mock("@/lib/repositoryImages", () => ({
   buildPromptContentBlocks: mocks.buildPromptContentBlocks,
@@ -84,6 +88,7 @@ describe("HomeView", () => {
   beforeEach(() => {
     mocks.buildPromptContentBlocks.mockReset();
     mocks.sendPrompt.mockReset();
+    mocks.notifyConversationFinished.mockReset().mockResolvedValue(undefined);
     mocks.clear.mockReset();
     mocks.attachments.length = 0;
     useWorkspaceStore.setState({
@@ -197,5 +202,22 @@ describe("HomeView", () => {
     expect(mocks.clear).not.toHaveBeenCalled();
     expect(addUserMessage).not.toHaveBeenCalled();
     expect(mocks.sendPrompt).not.toHaveBeenCalled();
+  });
+
+  it("notifies after a successful home prompt finishes", async () => {
+    mocks.buildPromptContentBlocks.mockResolvedValueOnce([
+      { type: "text", text: "Hello" },
+    ]);
+    mocks.sendPrompt.mockResolvedValueOnce(undefined);
+    render(<HomeView />);
+
+    fireEvent.change(screen.getByPlaceholderText("Do anything"), {
+      target: { value: "Hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() =>
+      expect(mocks.notifyConversationFinished).toHaveBeenCalledWith("s1"),
+    );
   });
 });

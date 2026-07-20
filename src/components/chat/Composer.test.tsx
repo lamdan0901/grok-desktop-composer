@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   }>,
   buildPromptContentBlocks: vi.fn(),
   sendPrompt: vi.fn(),
+  notifyConversationFinished: vi.fn(),
   clear: vi.fn(),
 }));
 
@@ -25,6 +26,9 @@ vi.mock("@/lib/repositoryImages", () => ({
 }));
 vi.mock("@/lib/ensureAcpForSend", () => ({
   ensureAcpForSend: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/conversationNotification", () => ({
+  notifyConversationFinished: mocks.notifyConversationFinished,
 }));
 vi.mock("@/lib/sessionEmpty", () => ({ shouldShowHomeComposer: () => false }));
 vi.mock("@/hooks/useExternallyActiveSession", () => ({
@@ -108,6 +112,7 @@ describe("Composer", () => {
   beforeEach(() => {
     mocks.buildPromptContentBlocks.mockReset();
     mocks.sendPrompt.mockReset();
+    mocks.notifyConversationFinished.mockReset().mockResolvedValue(undefined);
     mocks.clear.mockReset();
     mocks.attachments.length = 0;
     useWorkspaceStore.setState({
@@ -181,5 +186,42 @@ describe("Composer", () => {
     expect(useWorkspaceStore.getState().sessions[0]!.messages).toEqual([
       expect.objectContaining({ role: "error", content: 'Failed to read image "missing.png"' }),
     ]);
+  });
+
+  it("notifies after a successful prompt finishes", async () => {
+    mocks.buildPromptContentBlocks.mockResolvedValueOnce([
+      { type: "text", text: "Hello" },
+    ]);
+    mocks.sendPrompt.mockResolvedValueOnce(undefined);
+    render(<Composer />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() =>
+      expect(mocks.notifyConversationFinished).toHaveBeenCalledWith("s1"),
+    );
+  });
+
+  it("does not notify when prompt sending fails", async () => {
+    mocks.buildPromptContentBlocks.mockResolvedValueOnce([
+      { type: "text", text: "Hello" },
+    ]);
+    mocks.sendPrompt.mockRejectedValueOnce(new Error("send failed"));
+    render(<Composer />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() =>
+      expect(useWorkspaceStore.getState().sessions[0]!.messages).toContainEqual(
+        expect.objectContaining({ role: "error", content: "send failed" }),
+      ),
+    );
+    expect(mocks.notifyConversationFinished).not.toHaveBeenCalled();
   });
 });

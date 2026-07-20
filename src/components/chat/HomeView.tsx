@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { getTabSession } from "@/lib/acp";
 import { ensureAcpForSend } from "@/lib/ensureAcpForSend";
+import { notifyConversationFinished } from "@/lib/conversationNotification";
 import { MAX_SESSIONS } from "@/lib/constants";
 import { notifyMaxSessions, pickProjectFolder } from "@/lib/projectFolder";
 import { formatModelName } from "@/lib/formatModelName";
@@ -279,6 +280,7 @@ export function HomeView() {
       await ensureAcpForSend(session.id, cwd, session.grokSessionId);
       await getTabSession(session.id).sendPrompt(promptText, promptBlocks);
       finalizeAssistantStream(session.id);
+      await notifyConversationFinished(session.id);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to send message";
