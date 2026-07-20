@@ -14,14 +14,17 @@ export interface McpInitializationState {
   failures: Record<string, McpInitializationFailure>;
 }
 
-export function formatMcpInitialization(state: McpInitializationState): string {
+export function formatMcpInitialization(
+  state: McpInitializationState,
+): string | null {
   if (state.phase === "running") {
     return `Starting MCP servers ${state.connected}/${state.total}…`;
   }
-  const failures = Object.entries(state.failures)
-    .map(([name, status]) => `${name} ${status === "needsauth" ? "needs authentication" : "unavailable"}`)
-    .join(", ");
-  return `MCP ready: ${state.connected}/${state.total}${failures ? ` · ${failures}` : ""}`;
+
+  const names = Object.keys(state.failures);
+  if (names.length === 0) return null;
+
+  return `${names.length} MCP server${names.length === 1 ? "" : "s"} failed: ${names.join(", ")}`;
 }
 
 export interface McpToolEntry {

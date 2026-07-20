@@ -112,8 +112,8 @@ export function ChatColumn() {
         <RewindPanel key={activeSessionId} />
         <PromptQueuePanel />
       </div>
-      <McpInitStatus tabId={activeSessionId} />
       <div className="chat-column__scroll" ref={scrollRef}>
+        <McpInitStatus tabId={activeSessionId} />
         {hasMessages ? (
           <MessageList
             messages={session!.messages}

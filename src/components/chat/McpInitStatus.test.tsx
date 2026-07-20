@@ -25,7 +25,20 @@ describe("McpInitStatus", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Starting MCP servers 2/4…");
   });
 
-  it("renders the final result and failed server names", () => {
+  it("hides completed initialization when every server succeeded", () => {
+    useMcpStore.setState({
+      serversByTab: {},
+      initializationByTab: {
+        tabA: { phase: "complete", total: 4, connected: 4, failures: {} },
+      },
+    });
+
+    const { container } = render(<McpInitStatus tabId="tabA" />);
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders one failed server name", () => {
     useMcpStore.setState({
       serversByTab: {},
       initializationByTab: {
@@ -33,13 +46,33 @@ describe("McpInitStatus", () => {
           phase: "complete",
           total: 4,
           connected: 3,
+          failures: { github: "unavailable" },
+        },
+      },
+    });
+
+    render(<McpInitStatus tabId="tabA" />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "1 MCP server failed: github",
+    );
+  });
+
+  it("renders the failed count and server names", () => {
+    useMcpStore.setState({
+      serversByTab: {},
+      initializationByTab: {
+        tabA: {
+          phase: "complete",
+          total: 4,
+          connected: 2,
           failures: { github: "unavailable", atlassian: "needsauth" },
         },
       },
     });
     render(<McpInitStatus tabId="tabA" />);
     expect(screen.getByRole("status")).toHaveTextContent(
-      "MCP ready: 3/4 · github unavailable, atlassian needs authentication",
+      "2 MCP servers failed: github, atlassian",
     );
   });
 });
